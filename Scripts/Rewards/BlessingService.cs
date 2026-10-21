@@ -80,6 +80,12 @@ namespace Forwindz.CycleBlessings
                 return;
             }
 
+            if (CycleStateStore.IsSettlementApplied())
+            {
+                Plugin.Log.LogWarning("Cycle blessings were already applied to this settlement; skipping a duplicate application.");
+                return;
+            }
+
             s_pendingSettlementApply = true;
             s_applyDeadlineStarted = false;
             Plugin.Log.LogInfo("New settlement detected; cycle blessings will be applied once the settlement services are ready.");
@@ -130,6 +136,7 @@ namespace Forwindz.CycleBlessings
             }
 
             ApplyAllAtSettlementStart();
+            CycleStateStore.MarkSettlementApplied();
             s_pendingSettlementApply = false;
         }
 
@@ -156,11 +163,12 @@ namespace Forwindz.CycleBlessings
         private static void ApplyAllAtSettlementStart()
         {
             CycleState state = CycleStateStore.State;
+            List<string> ids = new List<string>(state.blessingIds);
             int applied = 0;
 
-            for (int i = 0; i < state.blessingIds.Count; i++)
+            for (int i = 0; i < ids.Count; i++)
             {
-                string id = state.blessingIds[i];
+                string id = ids[i];
                 BlessingDef def = FindDef(id);
                 if (def == null)
                 {
@@ -172,7 +180,7 @@ namespace Forwindz.CycleBlessings
                 applied++;
             }
 
-            Plugin.Log.LogInfo($"Applied {applied}/{state.blessingIds.Count} cycle blessing(s) to the new settlement.");
+            Plugin.Log.LogInfo($"Applied {applied}/{ids.Count} cycle blessing(s) to the new settlement.");
         }
 
         private static bool TryGrantNow(BlessingDef def)

@@ -101,6 +101,7 @@ namespace Forwindz.CycleBlessings
             }
 
             Current.Sanitize();
+            Plugin.Log.LogInfo("Using cycle blessings config: " + ConfigPath);
         }
 
         public BlessingDimension? Classify(string sourceName, string reason)

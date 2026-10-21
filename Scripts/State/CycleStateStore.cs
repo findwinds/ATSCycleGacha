@@ -10,6 +10,7 @@ namespace Forwindz.CycleBlessings
     public static class CycleStateStore
     {
         private const string SaveKey = "CycleBlessings_State_v1";
+        private const string SettlementAppliedKey = "CycleBlessings_Applied_v1";
 
         private static ModSaveData s_saveData;
         private static CycleState s_state;
@@ -60,6 +61,45 @@ namespace Forwindz.CycleBlessings
             }
 
             s_saveData.CurrentCycle.SetValue(SaveKey, s_state);
+        }
+
+        /// <summary>
+        /// CurrentSettlement is cleared by ATS_API when a new settlement starts, so this flag
+        /// naturally resets for every new settlement and protects against double application.
+        /// </summary>
+        public static bool IsSettlementApplied()
+        {
+            if (s_saveData == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                return s_saveData.CurrentSettlement.GetValueAsObject(SettlementAppliedKey, false);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static void MarkSettlementApplied()
+        {
+            if (s_saveData == null)
+            {
+                return;
+            }
+
+            s_saveData.CurrentSettlement.SetValue(SettlementAppliedKey, true);
+            try
+            {
+                ModdedSaveManager.SaveModdedData(PluginInfo.PLUGIN_GUID);
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("Could not save the settlement-applied flag immediately: " + e.Message);
+            }
         }
 
         public static void PersistImmediately()
