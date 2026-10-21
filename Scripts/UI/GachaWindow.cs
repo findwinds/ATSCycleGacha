@@ -89,10 +89,10 @@ namespace Forwindz.CycleBlessings
             }
 
             Rect rect = new Rect(24, 24, 290, 62);
-            string label =
-                "抽奖券 / Tickets: " + state.tickets +
-                (state.freeDraws > 0 ? "   免费 / Free: " + state.freeDraws : "") +
-                "\n按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
+            string secondLine = state.freeDraws > 0
+                ? "免费 / Free: " + state.freeDraws + "    " + ModConfig.Current.gachaHotkey + " 打开"
+                : "按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
+            string label = "抽奖券 / Tickets: " + state.tickets + "\n" + secondLine;
             if (GUI.Button(rect, label, s_button))
             {
                 s_show = true;
