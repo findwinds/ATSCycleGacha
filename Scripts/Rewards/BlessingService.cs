@@ -138,7 +138,12 @@ namespace Forwindz.CycleBlessings
                 }
             }
 
-            return BuildRewardSummary(def);
+            string summary = BuildRewardSummary(def);
+            bool isResourceOrPopulation =
+                (def.goods != null && def.goods.Count > 0) || def.villagers > 0;
+            return isResourceOrPopulation
+                ? $"每座新定居点开局 {summary}。"
+                : summary;
         }
 
         public static string StripTags(string text)
