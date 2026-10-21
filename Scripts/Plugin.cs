@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using ATS_API;
 using ATS_API.Helpers;
 using ATS_API.SaveLoading;
 using BepInEx;
 using Eremite.Services;
 using HarmonyLib;
+using UnityEngine;
 
 namespace Forwindz.CycleBlessings
 {
@@ -11,7 +14,7 @@ namespace Forwindz.CycleBlessings
     {
         public const string PLUGIN_GUID = "Forwindz.CycleBlessings";
         public const string PLUGIN_NAME = "Cycle Blessings";
-        public const string PLUGIN_VERSION = "0.2.0";
+        public const string PLUGIN_VERSION = "0.3.0";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -39,10 +42,14 @@ namespace Forwindz.CycleBlessings
             EventBus.OnCycleEnded.AddListener(OnCycleEnded);
 
             PatchGameMethods();
-            PopupNotifier.Initialize();
-            PopupNotifier.RegisterHotkey();
+            RegisterGachaHotkey();
 
-            Log.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded. Threshold={ModConfig.Current.threshold}");
+            Log.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded.");
+        }
+
+        private void OnGUI()
+        {
+            GachaWindow.Draw();
         }
 
         private void OnDestroy()
@@ -53,17 +60,40 @@ namespace Forwindz.CycleBlessings
             }
         }
 
+        private void RegisterGachaHotkey()
+        {
+            string configuredKey = ModConfig.Current.gachaHotkey;
+            if (string.IsNullOrEmpty(configuredKey))
+            {
+                return;
+            }
+
+            KeyCode keyCode;
+            if (!Enum.TryParse(configuredKey, true, out keyCode))
+            {
+                Log.LogWarning($"Unknown gachaHotkey '{configuredKey}' in cycle_gacha.json; the gacha window has no hotkey.");
+                return;
+            }
+
+            try
+            {
+                Hotkeys.New(
+                    PluginInfo.PLUGIN_GUID,
+                    "cycleBlessingsGacha",
+                    "Cycle Gacha / 循环抽奖",
+                    new List<KeyCode> { keyCode },
+                    GachaWindow.Toggle);
+                Log.LogInfo($"Registered gacha hotkey {keyCode}.");
+            }
+            catch (Exception e)
+            {
+                Log.LogWarning("Could not register the gacha hotkey: " + e.Message);
+            }
+        }
+
         private void PatchGameMethods()
         {
             m_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
-
-            Patch(
-                "ReputationService.AddReputationPoints",
-                typeof(ReputationService),
-                nameof(ReputationService.AddReputationPoints),
-                new[] { typeof(float), typeof(ReputationChangeSource), typeof(string) },
-                typeof(ReputationPatch),
-                nameof(ReputationPatch.Postfix));
 
             Patch(
                 "EffectsService.AddLateInitialEffects",
@@ -72,6 +102,30 @@ namespace Forwindz.CycleBlessings
                 null,
                 typeof(EffectsPatch),
                 nameof(EffectsPatch.Postfix));
+
+            Patch(
+                "ReputationService.CheckForWin",
+                typeof(ReputationService),
+                nameof(ReputationService.CheckForWin),
+                null,
+                typeof(SettlementEndPatch),
+                nameof(SettlementEndPatch.CheckForWinPostfix));
+
+            Patch(
+                "ReputationService.ForceGameWin",
+                typeof(ReputationService),
+                nameof(ReputationService.ForceGameWin),
+                null,
+                typeof(SettlementEndPatch),
+                nameof(SettlementEndPatch.ForceGameWinPostfix));
+
+            Patch(
+                "ReputationService.GameLost",
+                typeof(ReputationService),
+                nameof(ReputationService.GameLost),
+                null,
+                typeof(SettlementEndPatch),
+                nameof(SettlementEndPatch.GameLostPostfix));
         }
 
         private void Patch(string label, Type type, string methodName, Type[] parameters, Type patchType, string postfixName)
@@ -105,7 +159,7 @@ namespace Forwindz.CycleBlessings
 
         private static void OnCycleEnded()
         {
-            Log.LogInfo("Cycle ended: cycle buff counters and buff list were reset by ATS_API.");
+            Log.LogInfo("Cycle ended: tickets, the wheel and the cycle buff list were reset by ATS_API.");
         }
     }
 }

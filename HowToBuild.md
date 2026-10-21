@@ -43,15 +43,17 @@ $(BepInExPath)\BepInEx\plugins\Forwindz-CycleBlessings\
 
 1. 游戏目录下已安装 BepInEx，且 `BepInEx/plugins/ATS_API_Devs-API/API.dll` 存在。
 2. `BepInEx/LogOutput.log` 中能看到：
-   - `Cycle Blessings v0.2.0 loaded. Threshold=18`
-   - `Patched Eremite.Services.ReputationService.AddReputationPoints`
+   - `Cycle Blessings v0.3.0 loaded`
+   - `Patched Eremite.Services.ReputationService.CheckForWin`
+   - `Patched Eremite.Services.ReputationService.ForceGameWin`
+   - `Patched Eremite.Services.ReputationService.GameLost`
    - `Patched Eremite.Services.EffectsService.AddLateInitialEffects`
-3. 进入一局游戏，完成一个指令，检查日志是否出现 `Earned 1 Orders buff(s)`。
-4. 按 F8 查看进度面板。
+3. 赢下一局，检查日志是否出现 `+1 draw ticket`；回到大地图按 F7 打开抽奖窗口。
+4. 抽一次后检查日志 `Gacha draw #...`，下一局开局检查 `Applied N/M cycle buff(s)`。
 
 ## 4. 常见构建问题
 
 - **找不到 Assembly-CSharp.dll**：`StormPath` 没填对。注意路径里是 `Against the Storm_Data/Managed/Assembly-CSharp.dll`。
 - **找不到 API.dll**：`BepInExPath` 应指向**包含 BepInEx 文件夹的 profile 根目录**，不是 `BepInEx` 本身。目标路径是 `<BepInExPath>\BepInEx\plugins\ATS_API_Devs-API\API.dll`。
 - **BepInEx 包还原失败**：确认 `NuGet.Config` 里的 `https://nuget.bepinex.dev/v3/index.json` 可访问。
-- **编译通过但游戏里没效果**：先看 `BepInEx/LogOutput.log` 里是否有 patch 失败或 `Unclassified reputation source` 日志。
+- **编译通过但游戏里没效果**：先看 `BepInEx/LogOutput.log` 里是否有 patch 失败或 `Could not find effect` 日志。

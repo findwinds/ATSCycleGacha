@@ -4,117 +4,62 @@ using System.Text;
 
 namespace Forwindz.CycleBlessings
 {
-    public enum BlessingDimension
+    [Serializable]
+    public class WheelOption
     {
-        Orders,
-        Resolve,
-        Glade
+        public string effect;
+        public string rarity;
     }
 
     /// <summary>
-    /// Stored in ModSaveData.CurrentCycle, so ATS_API clears it automatically when the world cycle ends.
-    /// Reputation values are raw amounts; effectNames holds the internal EffectModel names granted
-    /// by milestones. One entry per grant, so duplicates stack naturally.
+    /// Stored in ModSaveData.CurrentCycle, so ATS_API clears tickets, the wheel and all
+    /// owned buffs automatically when the world cycle ends.
     /// </summary>
     [Serializable]
     public class CycleState
     {
-        public float ordersReputation;
-        public float resolveReputation;
-        public float gladeReputation;
-
-        public int ordersGrants;
-        public int resolveGrants;
-        public int gladeGrants;
-
+        public int tickets;
+        public bool wheelGenerated;
+        public List<WheelOption> wheel = new List<WheelOption>();
         public List<string> effectNames = new List<string>();
-
-        public float GetReputation(BlessingDimension dimension)
-        {
-            switch (dimension)
-            {
-                case BlessingDimension.Orders: return ordersReputation;
-                case BlessingDimension.Resolve: return resolveReputation;
-                case BlessingDimension.Glade: return gladeReputation;
-                default: return 0f;
-            }
-        }
-
-        public float AddReputation(BlessingDimension dimension, float amount)
-        {
-            if (amount <= 0f)
-            {
-                return GetReputation(dimension);
-            }
-
-            switch (dimension)
-            {
-                case BlessingDimension.Orders:
-                    ordersReputation += amount;
-                    return ordersReputation;
-                case BlessingDimension.Resolve:
-                    resolveReputation += amount;
-                    return resolveReputation;
-                case BlessingDimension.Glade:
-                    gladeReputation += amount;
-                    return gladeReputation;
-                default:
-                    return 0f;
-            }
-        }
-
-        public int GetGrantCount(BlessingDimension dimension)
-        {
-            switch (dimension)
-            {
-                case BlessingDimension.Orders: return ordersGrants;
-                case BlessingDimension.Resolve: return resolveGrants;
-                case BlessingDimension.Glade: return gladeGrants;
-                default: return 0;
-            }
-        }
-
-        public void IncrementGrant(BlessingDimension dimension)
-        {
-            switch (dimension)
-            {
-                case BlessingDimension.Orders:
-                    ordersGrants++;
-                    break;
-                case BlessingDimension.Resolve:
-                    resolveGrants++;
-                    break;
-                case BlessingDimension.Glade:
-                    gladeGrants++;
-                    break;
-            }
-        }
+        public int drawsSinceWheelGenerated;
+        public int totalDraws;
 
         public void Sanitize()
         {
+            if (wheel == null)
+            {
+                wheel = new List<WheelOption>();
+            }
+
             if (effectNames == null)
             {
                 effectNames = new List<string>();
             }
 
+            for (int i = wheel.Count - 1; i >= 0; i--)
+            {
+                WheelOption option = wheel[i];
+                if (option == null || string.IsNullOrEmpty(option.effect) || string.IsNullOrEmpty(option.rarity))
+                {
+                    wheel.RemoveAt(i);
+                }
+            }
+
             effectNames.RemoveAll(string.IsNullOrEmpty);
 
-            if (ordersReputation < 0f) ordersReputation = 0f;
-            if (resolveReputation < 0f) resolveReputation = 0f;
-            if (gladeReputation < 0f) gladeReputation = 0f;
-
-            if (ordersGrants < 0) ordersGrants = 0;
-            if (resolveGrants < 0) resolveGrants = 0;
-            if (gladeGrants < 0) gladeGrants = 0;
+            if (tickets < 0) tickets = 0;
+            if (drawsSinceWheelGenerated < 0) drawsSinceWheelGenerated = 0;
+            if (totalDraws < 0) totalDraws = 0;
         }
 
         public string Describe()
         {
             StringBuilder builder = new StringBuilder();
-            builder.Append("Orders=").Append(ordersReputation.ToString("0.##"));
-            builder.Append(" Resolve=").Append(resolveReputation.ToString("0.##"));
-            builder.Append(" Glade=").Append(gladeReputation.ToString("0.##"));
+            builder.Append("Tickets=").Append(tickets);
+            builder.Append(" Wheel=").Append(wheel.Count);
             builder.Append(" Buffs=").Append(effectNames.Count);
+            builder.Append(" Draws=").Append(totalDraws);
             return builder.ToString();
         }
     }

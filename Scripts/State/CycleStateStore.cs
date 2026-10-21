@@ -5,12 +5,13 @@ namespace Forwindz.CycleBlessings
 {
     /// <summary>
     /// Wraps ModSaveData.CurrentCycle. ATS_API replaces CurrentCycle with a fresh SaveData on
-    /// WorldCalendarService.OnCycleEnded, which is exactly the reset point this mod needs.
+    /// WorldCalendarService.OnCycleEnded, which resets tickets, the wheel and all owned buffs.
     /// </summary>
     public static class CycleStateStore
     {
-        private const string SaveKey = "CycleBlessings_State_v2";
-        private const string SettlementAppliedKey = "CycleBlessings_Applied_v1";
+        private const string SaveKey = "CycleBlessings_State_v3";
+        private const string SettlementAppliedKey = "CycleBlessings_BuffsApplied_v1";
+        private const string SettlementTicketKey = "CycleBlessings_TicketGranted_v1";
 
         private static ModSaveData s_saveData;
         private static CycleState s_state;
@@ -63,45 +64,6 @@ namespace Forwindz.CycleBlessings
             s_saveData.CurrentCycle.SetValue(SaveKey, s_state);
         }
 
-        /// <summary>
-        /// CurrentSettlement is cleared by ATS_API when a new settlement starts, so this flag
-        /// naturally resets for every new settlement and protects against double application.
-        /// </summary>
-        public static bool IsSettlementApplied()
-        {
-            if (s_saveData == null)
-            {
-                return false;
-            }
-
-            try
-            {
-                return s_saveData.CurrentSettlement.GetValueAsObject(SettlementAppliedKey, false);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public static void MarkSettlementApplied()
-        {
-            if (s_saveData == null)
-            {
-                return;
-            }
-
-            s_saveData.CurrentSettlement.SetValue(SettlementAppliedKey, true);
-            try
-            {
-                ModdedSaveManager.SaveModdedData(PluginInfo.PLUGIN_GUID);
-            }
-            catch (Exception e)
-            {
-                Plugin.Log.LogWarning("Could not save the settlement-applied flag immediately: " + e.Message);
-            }
-        }
-
         public static void PersistImmediately()
         {
             Persist();
@@ -113,6 +75,91 @@ namespace Forwindz.CycleBlessings
             catch (Exception e)
             {
                 Plugin.Log.LogWarning("Could not save cycle blessings immediately: " + e.Message);
+            }
+        }
+
+        /// <summary>
+        /// Marks the settlement as ticket-resolved and optionally adds the ticket in the same
+        /// save, so a crash cannot mark the settlement without awarding the ticket.
+        /// </summary>
+        public static bool GrantTicketIfNeeded(bool grant)
+        {
+            if (s_saveData == null)
+            {
+                Plugin.Log.LogWarning("Cannot grant a draw ticket because the mod save data is not loaded.");
+                return false;
+            }
+
+            if (GetSettlementFlag(SettlementTicketKey))
+            {
+                return false;
+            }
+
+            s_saveData.CurrentSettlement.SetValue(SettlementTicketKey, true);
+            if (grant)
+            {
+                State.tickets++;
+            }
+
+            PersistImmediately();
+            return grant;
+        }
+
+        /// <summary>
+        /// CurrentSettlement is cleared by ATS_API when a new settlement starts, so this flag
+        /// naturally resets for every new settlement and protects against double application.
+        /// </summary>
+        public static bool IsSettlementApplied()
+        {
+            return GetSettlementFlag(SettlementAppliedKey);
+        }
+
+        public static void MarkSettlementApplied()
+        {
+            SetSettlementFlag(SettlementAppliedKey);
+        }
+
+        /// <summary>
+        /// Set once per settlement when the game reports a win or loss, so multiple end hooks
+        /// cannot award more than one ticket for the same settlement.
+        /// </summary>
+        public static bool IsTicketGranted()
+        {
+            return GetSettlementFlag(SettlementTicketKey);
+        }
+
+        private static bool GetSettlementFlag(string key)
+        {
+            if (s_saveData == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                return s_saveData.CurrentSettlement.GetValueAsObject(key, false);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void SetSettlementFlag(string key)
+        {
+            if (s_saveData == null)
+            {
+                return;
+            }
+
+            s_saveData.CurrentSettlement.SetValue(key, true);
+            try
+            {
+                ModdedSaveManager.SaveModdedData(PluginInfo.PLUGIN_GUID);
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning($"Could not save settlement flag '{key}' immediately: " + e.Message);
             }
         }
 

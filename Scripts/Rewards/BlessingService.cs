@@ -4,85 +4,45 @@ using System.Linq;
 using ATS_API.Helpers;
 using Eremite;
 using Eremite.Model;
-using Eremite.Services;
-using UnityEngine;
 
 namespace Forwindz.CycleBlessings
 {
     /// <summary>
-    /// Turns reputation milestones into real EffectModel buffs. The effects are the same
-    /// world-event reward effects the game stores in WorldStateService.Cycle.activeEventsEffects
-    /// and applies in EffectsService.AddLateInitialEffects, so they behave like world-event buffs
-    /// for the rest of the cycle.
+    /// Applies the buffs won from the cycle gacha. The effects are real EffectModels, applied
+    /// at the same point the game applies world-event rewards (EffectsService.AddLateInitialEffects).
     /// </summary>
     public static class BlessingService
     {
-        private static readonly System.Random s_random = new System.Random(Environment.TickCount);
-        private static readonly HashSet<string> s_loggedUnknownSources = new HashSet<string>();
         private static readonly HashSet<string> s_loggedMissingEffects = new HashSet<string>();
 
-        public static void OnReputationGained(float amount, ReputationChangeSource type, string reason)
+        /// <summary>
+        /// Called by a Harmony postfix on EffectsService.AddLateInitialEffects and by the
+        /// OnStartGame fallback. The settlement flag makes it idempotent.
+        /// </summary>
+        public static void ApplyCycleBuffsAtSettlementStart()
         {
-            string sourceName = type.ToString();
-            BlessingDimension? dimension = ModConfig.Current.Classify(sourceName, reason);
-            if (!dimension.HasValue)
+            if (CycleStateStore.IsSettlementApplied())
             {
-                LogUnknown(sourceName, reason);
                 return;
             }
 
             CycleState state = CycleStateStore.State;
-            float total = state.AddReputation(dimension.Value, amount);
-            CycleStateStore.Persist();
+            List<string> effectNames = new List<string>(state.effectNames);
+            int applied = 0;
 
-            float threshold = ModConfig.Current.threshold;
-            List<BlessingDef> earned = new List<BlessingDef>();
-            int guard = 0;
-
-            // Re-read state on every iteration: an applied buff may itself trigger a
-            // reputation gain, and the nested call can consume a milestone first.
-            while (state.GetGrantCount(dimension.Value) <
-                   Mathf.FloorToInt((state.GetReputation(dimension.Value) + 0.0001f) / threshold))
+            for (int i = 0; i < effectNames.Count; i++)
             {
-                if (++guard > 100)
+                if (ApplyEffect(effectNames[i]))
                 {
-                    Plugin.Log.LogWarning("Stopped granting buffs after 100 milestones in one reputation gain; check for a buff that grants reputation recursively.");
-                    break;
-                }
-
-                BlessingDef def = Roll(dimension.Value);
-                if (def == null)
-                {
-                    Plugin.Log.LogWarning($"The {dimension.Value} buff pool has no usable entries; the milestone will be retried on the next reputation gain.");
-                    break;
-                }
-
-                state.IncrementGrant(dimension.Value);
-                state.effectNames.Add(def.effect);
-                earned.Add(def);
-
-                if (ModConfig.Current.grantImmediatelyOnEarn)
-                {
-                    TryApplyNow(def);
+                    applied++;
                 }
             }
 
-            if (earned.Count == 0)
-            {
-                return;
-            }
-
-            CycleStateStore.PersistImmediately();
-            PopupNotifier.AnnounceMany(dimension.Value, earned, total);
-
-            string names = string.Join(", ", earned.Select(GetDisplayName).ToArray());
-            Plugin.Log.LogInfo($"Earned {earned.Count} {dimension.Value} buff(s) at {total:0.##} reputation: {names}");
+            CycleStateStore.MarkSettlementApplied();
+            string appliedNames = string.Join(", ", effectNames.Select(GetDisplayName).ToArray());
+            Plugin.Log.LogInfo($"Applied {applied}/{effectNames.Count} cycle buff(s) to the new settlement: {appliedNames}");
         }
 
-        /// <summary>
-        /// Fallback for the very unlikely case where AddLateInitialEffects is missing or runs
-        /// before the mod save data is loaded. The settlement-applied flag makes this idempotent.
-        /// </summary>
         public static void OnStartGameFallback(bool isNewGame)
         {
             if (!isNewGame)
@@ -98,131 +58,6 @@ namespace Forwindz.CycleBlessings
             {
                 Plugin.Log.LogError("Failed to apply cycle buffs from the OnStartGame fallback");
                 Plugin.Log.LogError(e);
-            }
-        }
-
-        /// <summary>
-        /// Called by a Harmony postfix on EffectsService.AddLateInitialEffects. This is the
-        /// same point where the game applies world-event and embark effects, so the settlement
-        /// state and Settings are ready.
-        /// </summary>
-        public static void ApplyCycleBuffsAtSettlementStart()
-        {
-            if (!ModConfig.Current.applyBlessingsAtSettlementStart)
-            {
-                return;
-            }
-
-            if (CycleStateStore.IsSettlementApplied())
-            {
-                return;
-            }
-
-            CycleState state = CycleStateStore.State;
-            List<string> effectNames = new List<string>(state.effectNames);
-            int applied = 0;
-
-            for (int i = 0; i < effectNames.Count; i++)
-            {
-                if (ApplyEffect(effectNames[i], false))
-                {
-                    applied++;
-                }
-            }
-
-            CycleStateStore.MarkSettlementApplied();
-            string appliedNames = string.Join(", ", effectNames.Select(GetDisplayName).ToArray());
-            Plugin.Log.LogInfo($"Applied {applied}/{effectNames.Count} cycle buff(s) to the new settlement: {appliedNames}");
-        }
-
-        public static BlessingDef FindDef(string effectName)
-        {
-            BlessingDef result;
-            if (TryFindDef(ModConfig.Current.pools.orders, effectName, out result)) return result;
-            if (TryFindDef(ModConfig.Current.pools.resolve, effectName, out result)) return result;
-            if (TryFindDef(ModConfig.Current.pools.glade, effectName, out result)) return result;
-            return null;
-        }
-
-        public static string GetDisplayName(BlessingDef def)
-        {
-            if (def == null)
-            {
-                return "?";
-            }
-
-            if (!string.IsNullOrEmpty(def.name))
-            {
-                return def.name;
-            }
-
-            EffectModel effect = ResolveEffect(def.effect);
-            if (effect != null && effect.DisplayName != null)
-            {
-                string text = effect.DisplayName.GetText();
-                if (!string.IsNullOrEmpty(text))
-                {
-                    return text;
-                }
-            }
-
-            return def.effect;
-        }
-
-        public static string GetDescription(BlessingDef def)
-        {
-            if (def == null)
-            {
-                return "";
-            }
-
-            if (!string.IsNullOrEmpty(def.description))
-            {
-                return def.description;
-            }
-
-            EffectModel effect = ResolveEffect(def.effect);
-            if (effect != null && effect.Description != null)
-            {
-                string text = effect.Description.GetText();
-                if (!string.IsNullOrEmpty(text))
-                {
-                    return text;
-                }
-            }
-
-            return "";
-        }
-
-        public static string GetDisplayName(string effectName)
-        {
-            BlessingDef def = FindDef(effectName);
-            if (def != null)
-            {
-                return GetDisplayName(def);
-            }
-
-            EffectModel effect = ResolveEffect(effectName);
-            if (effect != null && effect.DisplayName != null)
-            {
-                string text = effect.DisplayName.GetText();
-                if (!string.IsNullOrEmpty(text))
-                {
-                    return text;
-                }
-            }
-
-            return effectName;
-        }
-
-        public static string GetDimensionDisplayName(BlessingDimension dimension)
-        {
-            switch (dimension)
-            {
-                case BlessingDimension.Orders: return "指令 / Orders";
-                case BlessingDimension.Resolve: return "满意度 / Resolve";
-                case BlessingDimension.Glade: return "森林事件 / Glade Events";
-                default: return dimension.ToString();
             }
         }
 
@@ -259,46 +94,72 @@ namespace Forwindz.CycleBlessings
             return null;
         }
 
-        private static EffectModel TryGetEffect(string internalName)
+        public static string GetDisplayName(string effectName)
         {
-            try
+            if (string.IsNullOrEmpty(effectName))
             {
-                return SO.Settings.GetEffect(internalName);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static bool TryApplyNow(BlessingDef def)
-        {
-            bool applied = ApplyEffect(def.effect, true);
-            if (!applied)
-            {
-                Plugin.Log.LogWarning($"Could not apply buff '{def.effect}' immediately; it will still be applied to future settlements.");
+                return "?";
             }
 
-            return applied;
-        }
-
-        private static bool ApplyEffect(string effectName, bool requireActiveGame)
-        {
-            if (requireActiveGame)
+            EffectModel effect = ResolveEffect(effectName);
+            if (effect != null && effect.DisplayName != null)
             {
-                try
+                string text = effect.DisplayName.GetText();
+                if (!string.IsNullOrEmpty(text))
                 {
-                    if (!GameMB.IsGameActive)
-                    {
-                        return false;
-                    }
-                }
-                catch
-                {
-                    return false;
+                    return StripTags(text);
                 }
             }
 
+            return effectName;
+        }
+
+        public static string GetDescription(string effectName)
+        {
+            EffectModel effect = ResolveEffect(effectName);
+            if (effect != null && effect.Description != null)
+            {
+                string text = effect.Description.GetText();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    return StripTags(text);
+                }
+            }
+
+            return "";
+        }
+
+        public static string StripTags(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return "";
+            }
+
+            System.Text.StringBuilder builder = new System.Text.StringBuilder(text.Length);
+            bool insideTag = false;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '<')
+                {
+                    insideTag = true;
+                }
+                else if (c == '>')
+                {
+                    insideTag = false;
+                }
+                else if (!insideTag)
+                {
+                    builder.Append(c);
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static bool ApplyEffect(string effectName)
+        {
             EffectModel effect = ResolveEffect(effectName);
             if (effect == null)
             {
@@ -318,86 +179,16 @@ namespace Forwindz.CycleBlessings
             }
         }
 
-        private static BlessingDef Roll(BlessingDimension dimension)
+        private static EffectModel TryGetEffect(string internalName)
         {
-            List<BlessingDef> pool = ModConfig.Current.GetPool(dimension);
-            if (pool == null || pool.Count == 0)
+            try
+            {
+                return SO.Settings.GetEffect(internalName);
+            }
+            catch
             {
                 return null;
             }
-
-            int totalWeight = 0;
-            for (int i = 0; i < pool.Count; i++)
-            {
-                if (IsSelectable(pool[i]))
-                {
-                    totalWeight += pool[i].weight;
-                }
-            }
-
-            if (totalWeight <= 0)
-            {
-                return null;
-            }
-
-            int roll = s_random.Next(totalWeight);
-            for (int i = 0; i < pool.Count; i++)
-            {
-                BlessingDef def = pool[i];
-                if (!IsSelectable(def))
-                {
-                    continue;
-                }
-
-                roll -= def.weight;
-                if (roll < 0)
-                {
-                    return def;
-                }
-            }
-
-            return null;
-        }
-
-        private static bool IsSelectable(BlessingDef def)
-        {
-            return def != null && !string.IsNullOrEmpty(def.effect) && def.weight > 0;
-        }
-
-        private static bool TryFindDef(List<BlessingDef> pool, string effectName, out BlessingDef result)
-        {
-            if (pool != null)
-            {
-                for (int i = 0; i < pool.Count; i++)
-                {
-                    if (pool[i] != null && pool[i].effect == effectName)
-                    {
-                        result = pool[i];
-                        return true;
-                    }
-                }
-            }
-
-            result = null;
-            return false;
-        }
-
-        private static void LogUnknown(string source, string reason)
-        {
-            if (!ModConfig.Current.logUnknownReputationSources)
-            {
-                return;
-            }
-
-            string key = source + "|" + reason;
-            if (!s_loggedUnknownSources.Add(key))
-            {
-                return;
-            }
-
-            Plugin.Log.LogWarning(
-                $"Unclassified reputation source '{source}' (reason='{reason}'). " +
-                "Add a matching token under reputationSources in cycle_blessings.json if this source should count.");
         }
 
         private static void LogMissingEffect(string key)
@@ -408,7 +199,7 @@ namespace Forwindz.CycleBlessings
             }
 
             Plugin.Log.LogWarning(
-                $"Could not find effect '{key}'. Check the EffectTypes enum name or the effect's internal name in cycle_blessings.json.");
+                $"Could not find effect '{key}'. Check the EffectTypes enum name or the effect's internal name in cycle_gacha.json.");
         }
     }
 }

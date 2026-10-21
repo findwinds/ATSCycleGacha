@@ -12,19 +12,18 @@ namespace Forwindz.CycleBlessings
 
         /// <summary>
         /// An EffectTypes enum member (for example WE_First_Elder_Bonus) or the effect's
-        /// internal name ("[WE] First Elder Bonus"). The effect is applied with EffectModel.Apply(),
-        /// the same way the game applies world-event rewards.
+        /// internal name ("[WE] First Elder Bonus"). The effect is applied with EffectModel.Apply().
         /// </summary>
         public string effect;
 
         /// <summary>
-        /// Optional display override for the popup. When empty, the effect's in-game
+        /// Optional display override for the gacha UI. When empty, the effect's in-game
         /// DisplayName is used.
         /// </summary>
         public string name;
 
         /// <summary>
-        /// Optional description override for the popup. When empty, the effect's in-game
+        /// Optional description override for the gacha UI. When empty, the effect's in-game
         /// Description is used.
         /// </summary>
         public string description;
@@ -33,42 +32,39 @@ namespace Forwindz.CycleBlessings
     }
 
     [Serializable]
-    public class SourceTokens
+    public class WheelCounts
     {
-        public List<string> orders = new List<string> { "Order" };
-        public List<string> resolve = new List<string> { "Resolve" };
-        public List<string> glade = new List<string> { "Relic", "Glade", "Event" };
+        public int legendary = 1;
+        public int epic = 2;
+        public int rare = 4;
+        public int uncommon = 8;
     }
 
     [Serializable]
     public class BlessingPools
     {
-        public List<BlessingDef> orders = new List<BlessingDef>();
-        public List<BlessingDef> resolve = new List<BlessingDef>();
-        public List<BlessingDef> glade = new List<BlessingDef>();
+        public List<BlessingDef> legendary = new List<BlessingDef>();
+        public List<BlessingDef> epic = new List<BlessingDef>();
+        public List<BlessingDef> rare = new List<BlessingDef>();
+        public List<BlessingDef> uncommon = new List<BlessingDef>();
     }
 
     [Serializable]
     public class ModConfig
     {
-        public float threshold = 18f;
+        public static readonly string[] Rarities = { "Legendary", "Epic", "Rare", "Uncommon" };
 
         /// <summary>
-        /// Apply the buff immediately in the settlement where it was earned, in addition to
-        /// every future settlement of the cycle.
+        /// Hotkey that opens the gacha window while the WorldMap scene is active.
         /// </summary>
-        public bool grantImmediatelyOnEarn = true;
+        public string gachaHotkey = "F7";
 
         /// <summary>
-        /// Re-apply every owned buff when a new settlement starts.
+        /// Grant a ticket when a settlement is lost as well as when it is won.
         /// </summary>
-        public bool applyBlessingsAtSettlementStart = true;
+        public bool grantTicketOnLoss = false;
 
-        public bool announceBlessings = true;
-        public bool logUnknownReputationSources = true;
-        public string statusHotkey = "F8";
-
-        public SourceTokens reputationSources = new SourceTokens();
+        public WheelCounts wheel = new WheelCounts();
         public BlessingPools pools = new BlessingPools();
 
         [JsonIgnore]
@@ -76,7 +72,7 @@ namespace Forwindz.CycleBlessings
 
         public static string ConfigPath
         {
-            get { return Path.Combine(Plugin.PluginDirectory, "cycle_blessings.json"); }
+            get { return Path.Combine(Plugin.PluginDirectory, "cycle_gacha.json"); }
         }
 
         public static void Load()
@@ -101,7 +97,7 @@ namespace Forwindz.CycleBlessings
             }
             catch (Exception e)
             {
-                Plugin.Log.LogError("Failed to load cycle_blessings.json, using built-in defaults.");
+                Plugin.Log.LogError("Failed to load cycle_gacha.json, using built-in defaults.");
                 Plugin.Log.LogError(e);
                 Current = CreateDefault();
             }
@@ -110,87 +106,35 @@ namespace Forwindz.CycleBlessings
             Plugin.Log.LogInfo("Using cycle blessings config: " + ConfigPath);
         }
 
-        public BlessingDimension? Classify(string sourceName, string reason)
+        public List<BlessingDef> GetPool(string rarity)
         {
-            if (MatchesAny(sourceName, reputationSources.orders))
+            switch (rarity)
             {
-                return BlessingDimension.Orders;
-            }
-
-            if (MatchesAny(sourceName, reputationSources.resolve))
-            {
-                return BlessingDimension.Resolve;
-            }
-
-            if (MatchesAny(sourceName, reputationSources.glade))
-            {
-                return BlessingDimension.Glade;
-            }
-
-            // Some effects only carry the useful information in the reason string.
-            if (MatchesAny(reason, reputationSources.orders))
-            {
-                return BlessingDimension.Orders;
-            }
-
-            if (MatchesAny(reason, reputationSources.resolve))
-            {
-                return BlessingDimension.Resolve;
-            }
-
-            if (MatchesAny(reason, reputationSources.glade))
-            {
-                return BlessingDimension.Glade;
-            }
-
-            return null;
-        }
-
-        public List<BlessingDef> GetPool(BlessingDimension dimension)
-        {
-            switch (dimension)
-            {
-                case BlessingDimension.Orders: return pools.orders;
-                case BlessingDimension.Resolve: return pools.resolve;
-                case BlessingDimension.Glade: return pools.glade;
+                case "Legendary": return pools.legendary;
+                case "Epic": return pools.epic;
+                case "Rare": return pools.rare;
+                case "Uncommon": return pools.uncommon;
                 default: return new List<BlessingDef>();
             }
         }
 
-        private static bool MatchesAny(string value, List<string> tokens)
+        public int GetWheelCount(string rarity)
         {
-            if (string.IsNullOrEmpty(value) || tokens == null)
+            switch (rarity)
             {
-                return false;
+                case "Legendary": return wheel.legendary;
+                case "Epic": return wheel.epic;
+                case "Rare": return wheel.rare;
+                case "Uncommon": return wheel.uncommon;
+                default: return 0;
             }
-
-            for (int i = 0; i < tokens.Count; i++)
-            {
-                string token = tokens[i];
-                if (!string.IsNullOrEmpty(token) && value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private void Sanitize()
         {
-            if (threshold < 1f)
+            if (wheel == null)
             {
-                threshold = 1f;
-            }
-
-            if (!grantImmediatelyOnEarn && !applyBlessingsAtSettlementStart)
-            {
-                Plugin.Log.LogWarning("Both grantImmediatelyOnEarn and applyBlessingsAtSettlementStart are false; buffs will be recorded but never applied.");
-            }
-
-            if (reputationSources == null)
-            {
-                reputationSources = new SourceTokens();
+                wheel = new WheelCounts();
             }
 
             if (pools == null)
@@ -198,18 +142,26 @@ namespace Forwindz.CycleBlessings
                 pools = new BlessingPools();
             }
 
-            if (pools.orders == null) pools.orders = new List<BlessingDef>();
-            if (pools.resolve == null) pools.resolve = new List<BlessingDef>();
-            if (pools.glade == null) pools.glade = new List<BlessingDef>();
+            if (pools.legendary == null) pools.legendary = new List<BlessingDef>();
+            if (pools.epic == null) pools.epic = new List<BlessingDef>();
+            if (pools.rare == null) pools.rare = new List<BlessingDef>();
+            if (pools.uncommon == null) pools.uncommon = new List<BlessingDef>();
 
-            SanitizePool(pools.orders, "order");
-            SanitizePool(pools.resolve, "resolve");
-            SanitizePool(pools.glade, "glade");
+            if (wheel.legendary < 0) wheel.legendary = 0;
+            if (wheel.epic < 0) wheel.epic = 0;
+            if (wheel.rare < 0) wheel.rare = 0;
+            if (wheel.uncommon < 0) wheel.uncommon = 0;
+
+            SanitizePool(pools.legendary, "legendary", wheel.legendary);
+            SanitizePool(pools.epic, "epic", wheel.epic);
+            SanitizePool(pools.rare, "rare", wheel.rare);
+            SanitizePool(pools.uncommon, "uncommon", wheel.uncommon);
 
             HashSet<string> ids = new HashSet<string>();
-            CheckDuplicateIds(pools.orders, ids);
-            CheckDuplicateIds(pools.resolve, ids);
-            CheckDuplicateIds(pools.glade, ids);
+            CheckDuplicateIds(pools.legendary, ids);
+            CheckDuplicateIds(pools.epic, ids);
+            CheckDuplicateIds(pools.rare, ids);
+            CheckDuplicateIds(pools.uncommon, ids);
         }
 
         private static void CheckDuplicateIds(List<BlessingDef> pool, HashSet<string> ids)
@@ -218,13 +170,14 @@ namespace Forwindz.CycleBlessings
             {
                 if (!ids.Add(pool[i].id))
                 {
-                    Plugin.Log.LogWarning($"Duplicate buff id '{pool[i].id}' in cycle_blessings.json. Ids should be unique across all three pools.");
+                    Plugin.Log.LogWarning($"Duplicate buff id '{pool[i].id}' in cycle_gacha.json. Ids should be unique across all pools.");
                 }
             }
         }
 
-        private static void SanitizePool(List<BlessingDef> pool, string prefix)
+        private static void SanitizePool(List<BlessingDef> pool, string rarity, int wheelCount)
         {
+            int usable = 0;
             for (int i = 0; i < pool.Count; i++)
             {
                 BlessingDef def = pool[i];
@@ -236,18 +189,29 @@ namespace Forwindz.CycleBlessings
 
                 if (string.IsNullOrEmpty(def.id))
                 {
-                    def.id = prefix + "_" + i;
+                    def.id = rarity + "_" + i;
                 }
 
                 if (string.IsNullOrEmpty(def.effect))
                 {
                     Plugin.Log.LogWarning($"Buff '{def.id}' has no effect set; it will be skipped.");
+                    continue;
                 }
 
                 if (def.weight < 0)
                 {
                     def.weight = 0;
                 }
+
+                if (def.weight > 0)
+                {
+                    usable++;
+                }
+            }
+
+            if (wheelCount > 0 && usable == 0)
+            {
+                Plugin.Log.LogWarning($"The {rarity} pool has no usable buffs, but the wheel asks for {wheelCount} option(s). Those slots will be empty.");
             }
         }
 
@@ -255,22 +219,34 @@ namespace Forwindz.CycleBlessings
         {
             ModConfig config = new ModConfig();
 
-            // The default pools reuse the game's own world-event reward effects. The game
-            // applies these through EffectsService.AddLateInitialEffects at settlement start.
-            config.pools.orders.Add(Buff("order_petrified_egg", "WE_Petrified_Egg"));
-            config.pools.orders.Add(Buff("order_airship_sigil", "WE_Crashed_Airship_Bonus"));
-            config.pools.orders.Add(Buff("order_cheap_rerolls", "WE_Lower_Blueprints_Reroll_Cost"));
-            config.pools.orders.Add(Buff("order_mining_automata", "WE_Automaton_In_All_Mines"));
+            // Legendary: the strongest persistent world-event rewards.
+            config.pools.legendary.Add(Buff("legendary_automatons", "WE_Automaton_In_All_Mines"));
+            config.pools.legendary.Add(Buff("legendary_elder_cat", "WE_First_Elder_Bonus"));
+            config.pools.legendary.Add(Buff("legendary_guild_sigil", "WE_Crashed_Airship_Bonus"));
 
-            config.pools.resolve.Add(Buff("resolve_elder_cat", "WE_First_Elder_Cat_Resolve"));
-            config.pools.resolve.Add(Buff("resolve_elder_cat_bonus", "WE_First_Elder_Bonus"));
-            config.pools.resolve.Add(Buff("resolve_festive_mood", "WE_Fallen_Viceroy_Commemoration_Composite"));
-            config.pools.resolve.Add(Buff("resolve_favored_species", "WE_Favor_Random_Race"));
+            // Epic: strong economy / production / resolve rewards.
+            config.pools.epic.Add(Buff("epic_petrified_egg", "WE_Petrified_Egg"));
+            config.pools.epic.Add(Buff("epic_field_station_enriched", "WE_Temporary_Engineering_Station_With_Enriched_Fuel_Recipe"));
+            config.pools.epic.Add(Buff("epic_elder_cat_resolve", "WE_First_Elder_Cat_Resolve"));
+            config.pools.epic.Add(Buff("epic_festive_mood", "WE_Fallen_Viceroy_Commemoration_Composite"));
 
-            config.pools.glade.Add(Buff("glade_guild_logbook", "WE_Glade_Info"));
-            config.pools.glade.Add(Buff("glade_blight_bomb", "WE_Blight_Bomb_Blueprint"));
-            config.pools.glade.Add(Buff("glade_field_station", "WE_Temporary_Engineering_Station_With_Fuel_Rod_Recipe"));
-            config.pools.glade.Add(Buff("glade_syndicate_trader", "WE_Call_Syndicate_Trader_Ability"));
+            // Rare: useful utility and exploration rewards.
+            config.pools.rare.Add(Buff("rare_guild_logbook", "WE_Glade_Info"));
+            config.pools.rare.Add(Buff("rare_blight_bomb", "WE_Blight_Bomb_Blueprint"));
+            config.pools.rare.Add(Buff("rare_field_station_fuel_rod", "WE_Temporary_Engineering_Station_With_Fuel_Rod_Recipe"));
+            config.pools.rare.Add(Buff("rare_syndicate_trader", "WE_Call_Syndicate_Trader_Ability"));
+            config.pools.rare.Add(Buff("rare_cheap_rerolls", "WE_Lower_Blueprints_Reroll_Cost"));
+            config.pools.rare.Add(Buff("rare_favored_species", "WE_Favor_Random_Race"));
+
+            // Uncommon: smaller global bonuses, plus two minor world-event rewards.
+            config.pools.uncommon.Add(Buff("uncommon_elder_cat_npc", "WE_Spawn_Cat_NPC"));
+            config.pools.uncommon.Add(Buff("uncommon_fishing_speed", "Fishing_Huts_Speed"));
+            config.pools.uncommon.Add(Buff("uncommon_hauler_speed", "Hauler_Speed"));
+            config.pools.uncommon.Add(Buff("uncommon_metal_speed", "Metalurgic_Proficiency_33"));
+            config.pools.uncommon.Add(Buff("uncommon_house_capacity", "Houses_Plus1_For_Break_Time"));
+            config.pools.uncommon.Add(Buff("uncommon_foragers", "Foragers_Camp_Plus50_Composite"));
+            config.pools.uncommon.Add(Buff("uncommon_herb_garden", "Herb_Garden_Plus50_Composite"));
+            config.pools.uncommon.Add(Buff("uncommon_brewery", "Brewery_Plus50_Composite"));
 
             return config;
         }
