@@ -9,14 +9,17 @@ using UnityEngine;
 
 namespace Forwindz.CycleBlessings
 {
+    /// <summary>
+    /// Turns reputation milestones into real EffectModel buffs. The effects are the same
+    /// world-event reward effects the game stores in WorldStateService.Cycle.activeEventsEffects
+    /// and applies in EffectsService.AddLateInitialEffects, so they behave like world-event buffs
+    /// for the rest of the cycle.
+    /// </summary>
     public static class BlessingService
     {
         private static readonly System.Random s_random = new System.Random(Environment.TickCount);
         private static readonly HashSet<string> s_loggedUnknownSources = new HashSet<string>();
-
-        private static bool s_pendingSettlementApply;
-        private static bool s_applyDeadlineStarted;
-        private static float s_applyDeadline;
+        private static readonly HashSet<string> s_loggedMissingEffects = new HashSet<string>();
 
         public static void OnReputationGained(float amount, ReputationChangeSource type, string reason)
         {
@@ -33,31 +36,34 @@ namespace Forwindz.CycleBlessings
             CycleStateStore.Persist();
 
             float threshold = ModConfig.Current.threshold;
-            int reachedMilestones = Mathf.FloorToInt((total + 0.0001f) / threshold);
-            int granted = state.GetBlessingCount(dimension.Value);
-            if (reachedMilestones <= granted)
-            {
-                return;
-            }
-
             List<BlessingDef> earned = new List<BlessingDef>();
-            while (granted < reachedMilestones)
+            int guard = 0;
+
+            // Re-read state on every iteration: an applied buff may itself trigger a
+            // reputation gain, and the nested call can consume a milestone first.
+            while (state.GetGrantCount(dimension.Value) <
+                   Mathf.FloorToInt((state.GetReputation(dimension.Value) + 0.0001f) / threshold))
             {
-                BlessingDef def = Roll(dimension.Value);
-                if (def == null)
+                if (++guard > 100)
                 {
-                    Plugin.Log.LogWarning($"The {dimension.Value} blessing pool is empty; the milestone will be retried on the next reputation gain.");
+                    Plugin.Log.LogWarning("Stopped granting buffs after 100 milestones in one reputation gain; check for a buff that grants reputation recursively.");
                     break;
                 }
 
-                state.IncrementBlessing(dimension.Value);
-                state.blessingIds.Add(def.id);
+                BlessingDef def = Roll(dimension.Value);
+                if (def == null)
+                {
+                    Plugin.Log.LogWarning($"The {dimension.Value} buff pool has no usable entries; the milestone will be retried on the next reputation gain.");
+                    break;
+                }
+
+                state.IncrementGrant(dimension.Value);
+                state.effectNames.Add(def.effect);
                 earned.Add(def);
-                granted++;
 
                 if (ModConfig.Current.grantImmediatelyOnEarn)
                 {
-                    TryGrantNow(def);
+                    TryApplyNow(def);
                 }
             }
 
@@ -69,87 +75,124 @@ namespace Forwindz.CycleBlessings
             CycleStateStore.PersistImmediately();
             PopupNotifier.AnnounceMany(dimension.Value, earned, total);
 
-            string ids = string.Join(", ", earned.Select(a => a.id).ToArray());
-            Plugin.Log.LogInfo($"Earned {earned.Count} {dimension.Value} blessing(s) at {total:0.##} reputation: {ids}");
+            string names = string.Join(", ", earned.Select(GetDisplayName).ToArray());
+            Plugin.Log.LogInfo($"Earned {earned.Count} {dimension.Value} buff(s) at {total:0.##} reputation: {names}");
         }
 
-        public static void OnStartGame(bool isNewGame)
+        /// <summary>
+        /// Called by a Harmony postfix on EffectsService.AddLateInitialEffects. This is the
+        /// same point where the game applies world-event and embark effects, so the settlement
+        /// state and Settings are ready.
+        /// </summary>
+        public static void ApplyCycleBuffsAtSettlementStart()
         {
-            if (!isNewGame || !ModConfig.Current.applyBlessingsAtSettlementStart)
+            if (!ModConfig.Current.applyBlessingsAtSettlementStart)
             {
                 return;
             }
 
             if (CycleStateStore.IsSettlementApplied())
             {
-                Plugin.Log.LogWarning("Cycle blessings were already applied to this settlement; skipping a duplicate application.");
                 return;
             }
 
-            s_pendingSettlementApply = true;
-            s_applyDeadlineStarted = false;
-            Plugin.Log.LogInfo("New settlement detected; cycle blessings will be applied once the settlement services are ready.");
-        }
+            CycleState state = CycleStateStore.State;
+            List<string> effectNames = new List<string>(state.effectNames);
+            int applied = 0;
 
-        public static void Tick()
-        {
-            if (!s_pendingSettlementApply)
+            for (int i = 0; i < effectNames.Count; i++)
             {
-                return;
-            }
-
-            try
-            {
-                if (!GameMB.IsGameActive)
+                if (ApplyEffect(effectNames[i], false))
                 {
-                    return;
+                    applied++;
                 }
             }
-            catch
-            {
-                return;
-            }
 
-            if (!s_applyDeadlineStarted)
-            {
-                s_applyDeadlineStarted = true;
-                s_applyDeadline = Time.realtimeSinceStartup + 30f;
-            }
-
-            if (Time.realtimeSinceStartup > s_applyDeadline)
-            {
-                Plugin.Log.LogWarning("Gave up waiting for settlement services; cycle blessings were not applied to this settlement.");
-                s_pendingSettlementApply = false;
-                return;
-            }
-
-            try
-            {
-                if (!ServicesReady(AnyBlessingNeedsVillagers()))
-                {
-                    return;
-                }
-            }
-            catch
-            {
-                return;
-            }
-
-            ApplyAllAtSettlementStart();
             CycleStateStore.MarkSettlementApplied();
-            s_pendingSettlementApply = false;
+            Plugin.Log.LogInfo($"Applied {applied}/{effectNames.Count} cycle buff(s) to the new settlement.");
         }
 
-        public static BlessingDef FindDef(string id)
+        public static BlessingDef FindDef(string effectName)
         {
             BlessingDef result;
-            if (TryFindDef(ModConfig.Current.pools.orders, id, out result)) return result;
-            if (TryFindDef(ModConfig.Current.pools.resolve, id, out result)) return result;
-            if (TryFindDef(ModConfig.Current.pools.glade, id, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.orders, effectName, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.resolve, effectName, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.glade, effectName, out result)) return result;
             return null;
         }
 
-        public static string GetDisplayName(BlessingDimension dimension)
+        public static string GetDisplayName(BlessingDef def)
+        {
+            if (def == null)
+            {
+                return "?";
+            }
+
+            if (!string.IsNullOrEmpty(def.name))
+            {
+                return def.name;
+            }
+
+            EffectModel effect = ResolveEffect(def.effect);
+            if (effect != null && effect.DisplayName != null)
+            {
+                string text = effect.DisplayName.GetText();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    return text;
+                }
+            }
+
+            return def.effect;
+        }
+
+        public static string GetDescription(BlessingDef def)
+        {
+            if (def == null)
+            {
+                return "";
+            }
+
+            if (!string.IsNullOrEmpty(def.description))
+            {
+                return def.description;
+            }
+
+            EffectModel effect = ResolveEffect(def.effect);
+            if (effect != null && effect.Description != null)
+            {
+                string text = effect.Description.GetText();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    return text;
+                }
+            }
+
+            return "";
+        }
+
+        public static string GetDisplayName(string effectName)
+        {
+            BlessingDef def = FindDef(effectName);
+            if (def != null)
+            {
+                return GetDisplayName(def);
+            }
+
+            EffectModel effect = ResolveEffect(effectName);
+            if (effect != null && effect.DisplayName != null)
+            {
+                string text = effect.DisplayName.GetText();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    return text;
+                }
+            }
+
+            return effectName;
+        }
+
+        public static string GetDimensionDisplayName(BlessingDimension dimension)
         {
             switch (dimension)
             {
@@ -160,168 +203,82 @@ namespace Forwindz.CycleBlessings
             }
         }
 
-        private static void ApplyAllAtSettlementStart()
+        public static EffectModel ResolveEffect(string key)
         {
-            CycleState state = CycleStateStore.State;
-            List<string> ids = new List<string>(state.blessingIds);
-            int applied = 0;
-
-            for (int i = 0; i < ids.Count; i++)
+            if (string.IsNullOrEmpty(key))
             {
-                string id = ids[i];
-                BlessingDef def = FindDef(id);
-                if (def == null)
-                {
-                    Plugin.Log.LogWarning($"Blessing '{id}' is saved in the cycle but missing from cycle_blessings.json; skipping it.");
-                    continue;
-                }
-
-                ApplyBlessing(def, false);
-                applied++;
+                return null;
             }
 
-            Plugin.Log.LogInfo($"Applied {applied}/{ids.Count} cycle blessing(s) to the new settlement.");
+            EffectTypes type;
+            if (Enum.TryParse(key, true, out type) &&
+                type != EffectTypes.Unknown &&
+                type != EffectTypes.None)
+            {
+                string internalName = type.ToName();
+                if (SO.Settings.ContainsEffect(internalName))
+                {
+                    return SO.Settings.GetEffect(internalName);
+                }
+
+                LogMissingEffect(key + " (" + internalName + ")");
+                return null;
+            }
+
+            if (SO.Settings.ContainsEffect(key))
+            {
+                return SO.Settings.GetEffect(key);
+            }
+
+            LogMissingEffect(key);
+            return null;
         }
 
-        private static bool TryGrantNow(BlessingDef def)
+        private static bool TryApplyNow(BlessingDef def)
         {
-            try
+            bool applied = ApplyEffect(def.effect, true);
+            if (!applied)
             {
-                if (!GameMB.IsGameActive || !ServicesReady(def.villagers > 0))
+                Plugin.Log.LogWarning($"Could not apply buff '{def.effect}' immediately; it will still be applied to future settlements.");
+            }
+
+            return applied;
+        }
+
+        private static bool ApplyEffect(string effectName, bool requireActiveGame)
+        {
+            if (requireActiveGame)
+            {
+                try
+                {
+                    if (!GameMB.IsGameActive)
+                    {
+                        return false;
+                    }
+                }
+                catch
                 {
                     return false;
                 }
+            }
 
-                ApplyBlessing(def, true);
+            EffectModel effect = ResolveEffect(effectName);
+            if (effect == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                effect.Apply();
                 return true;
             }
             catch (Exception e)
             {
-                Plugin.Log.LogWarning($"Could not grant blessing '{def.id}' immediately; it will still apply to future settlements.");
-                Plugin.Log.LogWarning(e.Message);
+                Plugin.Log.LogError($"Failed to apply buff effect '{effectName}'");
+                Plugin.Log.LogError(e);
                 return false;
             }
-        }
-
-        private static void ApplyBlessing(BlessingDef def, bool immediate)
-        {
-            if (def.goods != null)
-            {
-                for (int i = 0; i < def.goods.Count; i++)
-                {
-                    GoodAmount good = def.goods[i];
-                    if (good == null || string.IsNullOrEmpty(good.good) || good.amount <= 0)
-                    {
-                        continue;
-                    }
-
-                    string goodName = ResolveGoodName(good.good);
-                    if (string.IsNullOrEmpty(goodName))
-                    {
-                        Plugin.Log.LogWarning($"Unknown good '{good.good}' in blessing '{def.id}'; skipping it.");
-                        continue;
-                    }
-
-                    Serviceable.StorageService.Main.Goods.Add(goodName, good.amount);
-
-                    if (immediate)
-                    {
-                        Plugin.Log.LogInfo($"Granted +{good.amount} {goodName} from blessing '{def.id}'.");
-                    }
-                }
-            }
-
-            if (def.villagers > 0)
-            {
-                ApplyVillagers(def, immediate);
-            }
-        }
-
-        private static void ApplyVillagers(BlessingDef def, bool immediate)
-        {
-            if (Serviceable.VillagersService == null)
-            {
-                Plugin.Log.LogWarning($"Villagers service is not ready; blessing '{def.id}' could not add villagers.");
-                return;
-            }
-
-            var races = Serviceable.VillagersService.Races;
-            if (races == null || races.Count == 0)
-            {
-                Plugin.Log.LogWarning($"No races are available; blessing '{def.id}' could not add villagers.");
-                return;
-            }
-
-            List<string> raceNames = new List<string>(races.Keys);
-            for (int i = 0; i < def.villagers; i++)
-            {
-                string raceName = string.IsNullOrEmpty(def.race)
-                    ? raceNames[s_random.Next(raceNames.Count)]
-                    : def.race;
-
-                RaceModel race = raceName.ToRaceModel();
-                if (race == null)
-                {
-                    Plugin.Log.LogWarning($"Unknown race '{raceName}' in blessing '{def.id}'; stopping villager grant.");
-                    return;
-                }
-
-                SO.VillagersService.SpawnNewVillager(race);
-
-                if (immediate)
-                {
-                    Plugin.Log.LogInfo($"Spawned 1 {raceName} from blessing '{def.id}'.");
-                }
-            }
-        }
-
-        private static string ResolveGoodName(string key)
-        {
-            GoodsTypes type;
-            if (Enum.TryParse(key, true, out type) &&
-                type != GoodsTypes.Unknown &&
-                type != GoodsTypes.None)
-            {
-                return type.ToName();
-            }
-
-            GoodModel model = key.ToGoodModel();
-            return model != null ? model.name : null;
-        }
-
-        private static bool AnyBlessingNeedsVillagers()
-        {
-            CycleState state = CycleStateStore.State;
-            for (int i = 0; i < state.blessingIds.Count; i++)
-            {
-                BlessingDef def = FindDef(state.blessingIds[i]);
-                if (def != null && def.villagers > 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ServicesReady(bool needVillagers)
-        {
-            if (Serviceable.StorageService == null ||
-                Serviceable.StorageService.Main == null ||
-                Serviceable.StorageService.Main.Goods == null)
-            {
-                return false;
-            }
-
-            if (needVillagers)
-            {
-                if (Serviceable.VillagersService == null || Serviceable.VillagersService.Races == null || Serviceable.VillagersService.Races.Count == 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
         }
 
         private static BlessingDef Roll(BlessingDimension dimension)
@@ -335,7 +292,10 @@ namespace Forwindz.CycleBlessings
             int totalWeight = 0;
             for (int i = 0; i < pool.Count; i++)
             {
-                totalWeight += Math.Max(0, pool[i].weight);
+                if (IsSelectable(pool[i]))
+                {
+                    totalWeight += pool[i].weight;
+                }
             }
 
             if (totalWeight <= 0)
@@ -346,23 +306,34 @@ namespace Forwindz.CycleBlessings
             int roll = s_random.Next(totalWeight);
             for (int i = 0; i < pool.Count; i++)
             {
-                roll -= Math.Max(0, pool[i].weight);
+                BlessingDef def = pool[i];
+                if (!IsSelectable(def))
+                {
+                    continue;
+                }
+
+                roll -= def.weight;
                 if (roll < 0)
                 {
-                    return pool[i];
+                    return def;
                 }
             }
 
-            return pool[pool.Count - 1];
+            return null;
         }
 
-        private static bool TryFindDef(List<BlessingDef> pool, string id, out BlessingDef result)
+        private static bool IsSelectable(BlessingDef def)
+        {
+            return def != null && !string.IsNullOrEmpty(def.effect) && def.weight > 0;
+        }
+
+        private static bool TryFindDef(List<BlessingDef> pool, string effectName, out BlessingDef result)
         {
             if (pool != null)
             {
                 for (int i = 0; i < pool.Count; i++)
                 {
-                    if (pool[i] != null && pool[i].id == id)
+                    if (pool[i] != null && pool[i].effect == effectName)
                     {
                         result = pool[i];
                         return true;
@@ -390,6 +361,17 @@ namespace Forwindz.CycleBlessings
             Plugin.Log.LogWarning(
                 $"Unclassified reputation source '{source}' (reason='{reason}'). " +
                 "Add a matching token under reputationSources in cycle_blessings.json if this source should count.");
+        }
+
+        private static void LogMissingEffect(string key)
+        {
+            if (!s_loggedMissingEffects.Add(key))
+            {
+                return;
+            }
+
+            Plugin.Log.LogWarning(
+                $"Could not find effect '{key}'. Check the EffectTypes enum name or the effect's internal name in cycle_blessings.json.");
         }
     }
 }

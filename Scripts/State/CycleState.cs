@@ -13,7 +13,8 @@ namespace Forwindz.CycleBlessings
 
     /// <summary>
     /// Stored in ModSaveData.CurrentCycle, so ATS_API clears it automatically when the world cycle ends.
-    /// Values are raw reputation amounts, not milestone counts. Negative reputation is never recorded.
+    /// Reputation values are raw amounts; effectNames holds the internal EffectModel names granted
+    /// by milestones. One entry per grant, so duplicates stack naturally.
     /// </summary>
     [Serializable]
     public class CycleState
@@ -22,11 +23,11 @@ namespace Forwindz.CycleBlessings
         public float resolveReputation;
         public float gladeReputation;
 
-        public int ordersBlessings;
-        public int resolveBlessings;
-        public int gladeBlessings;
+        public int ordersGrants;
+        public int resolveGrants;
+        public int gladeGrants;
 
-        public List<string> blessingIds = new List<string>();
+        public List<string> effectNames = new List<string>();
 
         public float GetReputation(BlessingDimension dimension)
         {
@@ -62,47 +63,47 @@ namespace Forwindz.CycleBlessings
             }
         }
 
-        public int GetBlessingCount(BlessingDimension dimension)
+        public int GetGrantCount(BlessingDimension dimension)
         {
             switch (dimension)
             {
-                case BlessingDimension.Orders: return ordersBlessings;
-                case BlessingDimension.Resolve: return resolveBlessings;
-                case BlessingDimension.Glade: return gladeBlessings;
+                case BlessingDimension.Orders: return ordersGrants;
+                case BlessingDimension.Resolve: return resolveGrants;
+                case BlessingDimension.Glade: return gladeGrants;
                 default: return 0;
             }
         }
 
-        public void IncrementBlessing(BlessingDimension dimension)
+        public void IncrementGrant(BlessingDimension dimension)
         {
             switch (dimension)
             {
                 case BlessingDimension.Orders:
-                    ordersBlessings++;
+                    ordersGrants++;
                     break;
                 case BlessingDimension.Resolve:
-                    resolveBlessings++;
+                    resolveGrants++;
                     break;
                 case BlessingDimension.Glade:
-                    gladeBlessings++;
+                    gladeGrants++;
                     break;
             }
         }
 
         public void Sanitize()
         {
-            if (blessingIds == null)
+            if (effectNames == null)
             {
-                blessingIds = new List<string>();
+                effectNames = new List<string>();
             }
 
             if (ordersReputation < 0f) ordersReputation = 0f;
             if (resolveReputation < 0f) resolveReputation = 0f;
             if (gladeReputation < 0f) gladeReputation = 0f;
 
-            if (ordersBlessings < 0) ordersBlessings = 0;
-            if (resolveBlessings < 0) resolveBlessings = 0;
-            if (gladeBlessings < 0) gladeBlessings = 0;
+            if (ordersGrants < 0) ordersGrants = 0;
+            if (resolveGrants < 0) resolveGrants = 0;
+            if (gladeGrants < 0) gladeGrants = 0;
         }
 
         public string Describe()
@@ -111,7 +112,7 @@ namespace Forwindz.CycleBlessings
             builder.Append("Orders=").Append(ordersReputation.ToString("0.##"));
             builder.Append(" Resolve=").Append(resolveReputation.ToString("0.##"));
             builder.Append(" Glade=").Append(gladeReputation.ToString("0.##"));
-            builder.Append(" Blessings=").Append(blessingIds.Count);
+            builder.Append(" Buffs=").Append(effectNames.Count);
             return builder.ToString();
         }
     }

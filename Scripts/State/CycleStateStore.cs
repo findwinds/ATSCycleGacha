@@ -9,7 +9,7 @@ namespace Forwindz.CycleBlessings
     /// </summary>
     public static class CycleStateStore
     {
-        private const string SaveKey = "CycleBlessings_State_v1";
+        private const string SaveKey = "CycleBlessings_State_v2";
         private const string SettlementAppliedKey = "CycleBlessings_Applied_v1";
 
         private static ModSaveData s_saveData;

@@ -43,9 +43,10 @@ $(BepInExPath)\BepInEx\plugins\Forwindz-CycleBlessings\
 
 1. 游戏目录下已安装 BepInEx，且 `BepInEx/plugins/ATS_API_Devs-API/API.dll` 存在。
 2. `BepInEx/LogOutput.log` 中能看到：
-   - `Cycle Blessings v0.1.0 loaded. Threshold=18`
+   - `Cycle Blessings v0.2.0 loaded. Threshold=18`
    - `Patched Eremite.Services.ReputationService.AddReputationPoints`
-3. 进入一局游戏，完成一个指令，检查日志是否出现 `Earned 1 Orders blessing(s)`。
+   - `Patched Eremite.Services.EffectsService.AddLateInitialEffects`
+3. 进入一局游戏，完成一个指令，检查日志是否出现 `Earned 1 Orders buff(s)`。
 4. 按 F8 查看进度面板。
 
 ## 4. 常见构建问题

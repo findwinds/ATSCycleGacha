@@ -6,24 +6,29 @@ using Newtonsoft.Json;
 namespace Forwindz.CycleBlessings
 {
     [Serializable]
-    public class GoodAmount
-    {
-        /// <summary>
-        /// Either a GoodsTypes enum member (Mat_Raw_Wood) or the internal good name ([Mat Raw] Wood).
-        /// </summary>
-        public string good;
-        public int amount;
-    }
-
-    [Serializable]
     public class BlessingDef
     {
         public string id;
+
+        /// <summary>
+        /// An EffectTypes enum member (for example WE_First_Elder_Bonus) or the effect's
+        /// internal name ("[WE] First Elder Bonus"). The effect is applied with EffectModel.Apply(),
+        /// the same way the game applies world-event rewards.
+        /// </summary>
+        public string effect;
+
+        /// <summary>
+        /// Optional display override for the popup. When empty, the effect's in-game
+        /// DisplayName is used.
+        /// </summary>
         public string name;
+
+        /// <summary>
+        /// Optional description override for the popup. When empty, the effect's in-game
+        /// Description is used.
+        /// </summary>
         public string description;
-        public List<GoodAmount> goods = new List<GoodAmount>();
-        public int villagers;
-        public string race;
+
         public int weight = 1;
     }
 
@@ -49,12 +54,13 @@ namespace Forwindz.CycleBlessings
         public float threshold = 18f;
 
         /// <summary>
-        /// Apply the reward in the settlement where it was earned, in addition to future settlements.
+        /// Apply the buff immediately in the settlement where it was earned, in addition to
+        /// every future settlement of the cycle.
         /// </summary>
         public bool grantImmediatelyOnEarn = true;
 
         /// <summary>
-        /// Re-apply every owned blessing when a new settlement starts.
+        /// Re-apply every owned buff when a new settlement starts.
         /// </summary>
         public bool applyBlessingsAtSettlementStart = true;
 
@@ -179,7 +185,7 @@ namespace Forwindz.CycleBlessings
 
             if (!grantImmediatelyOnEarn && !applyBlessingsAtSettlementStart)
             {
-                Plugin.Log.LogWarning("Both grantImmediatelyOnEarn and applyBlessingsAtSettlementStart are false; blessings will be recorded but never delivered.");
+                Plugin.Log.LogWarning("Both grantImmediatelyOnEarn and applyBlessingsAtSettlementStart are false; buffs will be recorded but never applied.");
             }
 
             if (reputationSources == null)
@@ -212,7 +218,7 @@ namespace Forwindz.CycleBlessings
             {
                 if (!ids.Add(pool[i].id))
                 {
-                    Plugin.Log.LogWarning($"Duplicate blessing id '{pool[i].id}' in cycle_blessings.json. Ids should be unique across all three pools.");
+                    Plugin.Log.LogWarning($"Duplicate buff id '{pool[i].id}' in cycle_blessings.json. Ids should be unique across all three pools.");
                 }
             }
         }
@@ -233,19 +239,9 @@ namespace Forwindz.CycleBlessings
                     def.id = prefix + "_" + i;
                 }
 
-                if (string.IsNullOrEmpty(def.name))
+                if (string.IsNullOrEmpty(def.effect))
                 {
-                    def.name = def.id;
-                }
-
-                if (def.goods == null)
-                {
-                    def.goods = new List<GoodAmount>();
-                }
-
-                if (def.villagers < 0)
-                {
-                    def.villagers = 0;
+                    Plugin.Log.LogWarning($"Buff '{def.id}' has no effect set; it will be skipped.");
                 }
 
                 if (def.weight < 0)
@@ -259,45 +255,31 @@ namespace Forwindz.CycleBlessings
         {
             ModConfig config = new ModConfig();
 
-            config.pools.orders.Add(Goods("order_wood", "建材补给：木材 / Wood Cache", "每座新定居点开局额外获得 40 木材。", "Mat_Raw_Wood", 40));
-            config.pools.orders.Add(Goods("order_stone", "建材补给：石材 / Stone Cache", "每座新定居点开局额外获得 25 石材。", "Mat_Raw_Stone", 25));
-            config.pools.orders.Add(Goods("order_clay", "建材补给：黏土 / Clay Cache", "每座新定居点开局额外获得 25 黏土。", "Mat_Raw_Clay", 25));
-            config.pools.orders.Add(Goods("order_roots", "生食补给：根茎 / Roots Cache", "每座新定居点开局额外获得 30 根茎。", "Food_Raw_Roots", 30));
-            config.pools.orders.Add(Goods("order_meat", "生食补给：肉 / Meat Cache", "每座新定居点开局额外获得 20 肉。", "Food_Raw_Meat", 20));
-            config.pools.orders.Add(Goods("order_vegetables", "生食补给：蔬菜 / Vegetable Cache", "每座新定居点开局额外获得 20 蔬菜。", "Food_Raw_Vegetables", 20));
-            config.pools.orders.Add(Villagers("order_newcomers", "新居民 / New Settlers", "每座新定居点开局额外获得 2 名随机种族居民。", 2));
+            // The default pools reuse the game's own world-event reward effects. The game
+            // applies these through EffectsService.AddLateInitialEffects at settlement start.
+            config.pools.orders.Add(Buff("order_petrified_egg", "WE_Petrified_Egg"));
+            config.pools.orders.Add(Buff("order_airship_sigil", "WE_Crashed_Airship_Bonus"));
+            config.pools.orders.Add(Buff("order_cheap_rerolls", "WE_Lower_Blueprints_Reroll_Cost"));
+            config.pools.orders.Add(Buff("order_mining_automata", "WE_Automaton_In_All_Mines"));
 
-            config.pools.resolve.Add(Goods("resolve_planks", "制品补给：木板 / Plank Cache", "每座新定居点开局额外获得 15 木板。", "Mat_Processed_Planks", 15));
-            config.pools.resolve.Add(Goods("resolve_bricks", "制品补给：砖块 / Brick Cache", "每座新定居点开局额外获得 12 砖块。", "Mat_Processed_Bricks", 12));
-            config.pools.resolve.Add(Goods("resolve_fabric", "制品补给：织物 / Fabric Cache", "每座新定居点开局额外获得 10 织物。", "Mat_Processed_Fabric", 10));
-            config.pools.resolve.Add(Goods("resolve_tea", "服务物品：茶 / Tea Cache", "每座新定居点开局额外获得 8 茶。", "Needs_Tea", 8));
-            config.pools.resolve.Add(Goods("resolve_wine", "服务物品：酒 / Wine Cache", "每座新定居点开局额外获得 6 酒。", "Needs_Wine", 6));
-            config.pools.resolve.Add(Goods("resolve_incense", "服务物品：熏香 / Incense Cache", "每座新定居点开局额外获得 5 熏香。", "Needs_Incense", 5));
+            config.pools.resolve.Add(Buff("resolve_elder_cat", "WE_First_Elder_Cat_Resolve"));
+            config.pools.resolve.Add(Buff("resolve_elder_cat_bonus", "WE_First_Elder_Bonus"));
+            config.pools.resolve.Add(Buff("resolve_festive_mood", "WE_Fallen_Viceroy_Commemoration_Composite"));
+            config.pools.resolve.Add(Buff("resolve_favored_species", "WE_Favor_Random_Race"));
 
-            config.pools.glade.Add(Goods("glade_copper", "金属补给：铜锭 / Copper Bar Cache", "每座新定居点开局额外获得 8 铜锭。", "Metal_Copper_Bar", 8));
-            config.pools.glade.Add(Goods("glade_parts", "零件补给 / Parts Cache", "每座新定居点开局额外获得 6 零件。", "Mat_Processed_Parts", 6));
-            config.pools.glade.Add(Goods("glade_tools", "工具补给 / Tool Cache", "每座新定居点开局额外获得 10 简单工具。", "Tools_Simple_Tools", 10));
+            config.pools.glade.Add(Buff("glade_guild_logbook", "WE_Glade_Info"));
+            config.pools.glade.Add(Buff("glade_blight_bomb", "WE_Blight_Bomb_Blueprint"));
+            config.pools.glade.Add(Buff("glade_field_station", "WE_Temporary_Engineering_Station_With_Fuel_Rod_Recipe"));
+            config.pools.glade.Add(Buff("glade_syndicate_trader", "WE_Call_Syndicate_Trader_Ability"));
 
             return config;
         }
 
-        private static BlessingDef Goods(string id, string name, string description, string good, int amount)
+        private static BlessingDef Buff(string id, string effect)
         {
             BlessingDef def = new BlessingDef();
             def.id = id;
-            def.name = name;
-            def.description = description;
-            def.goods.Add(new GoodAmount { good = good, amount = amount });
-            return def;
-        }
-
-        private static BlessingDef Villagers(string id, string name, string description, int count)
-        {
-            BlessingDef def = new BlessingDef();
-            def.id = id;
-            def.name = name;
-            def.description = description;
-            def.villagers = count;
+            def.effect = effect;
             return def;
         }
     }

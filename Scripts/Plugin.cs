@@ -2,7 +2,6 @@ using System;
 using ATS_API.Helpers;
 using ATS_API.SaveLoading;
 using BepInEx;
-using Eremite;
 using Eremite.Services;
 using HarmonyLib;
 
@@ -12,7 +11,7 @@ namespace Forwindz.CycleBlessings
     {
         public const string PLUGIN_GUID = "Forwindz.CycleBlessings";
         public const string PLUGIN_NAME = "Cycle Blessings";
-        public const string PLUGIN_VERSION = "0.1.0";
+        public const string PLUGIN_VERSION = "0.2.0";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -36,19 +35,13 @@ namespace Forwindz.CycleBlessings
 
             ModdedSaveManager.ListenForLoadedSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnSaveDataLoaded);
             ModdedSaveManager.ListenForResetCycleSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnCycleReset);
-            EventBus.OnStartGame.AddListener(BlessingService.OnStartGame);
             EventBus.OnCycleEnded.AddListener(OnCycleEnded);
 
-            PatchReputationService();
+            PatchGameMethods();
             PopupNotifier.Initialize();
             PopupNotifier.RegisterHotkey();
 
             Log.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded. Threshold={ModConfig.Current.threshold}");
-        }
-
-        private void Update()
-        {
-            BlessingService.Tick();
         }
 
         private void OnDestroy()
@@ -59,34 +52,59 @@ namespace Forwindz.CycleBlessings
             }
         }
 
-        private void PatchReputationService()
+        private void PatchGameMethods()
         {
             m_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
+
+            Patch(
+                "ReputationService.AddReputationPoints",
+                typeof(ReputationService),
+                nameof(ReputationService.AddReputationPoints),
+                new[] { typeof(float), typeof(ReputationChangeSource), typeof(string) },
+                typeof(ReputationPatch),
+                nameof(ReputationPatch.Postfix));
+
+            Patch(
+                "EffectsService.AddLateInitialEffects",
+                typeof(EffectsService),
+                nameof(EffectsService.AddLateInitialEffects),
+                null,
+                typeof(EffectsPatch),
+                nameof(EffectsPatch.Postfix));
+        }
+
+        private void Patch(string label, Type type, string methodName, Type[] parameters, Type patchType, string postfixName)
+        {
             try
             {
-                var target = AccessTools.Method(
-                    typeof(ReputationService),
-                    nameof(ReputationService.AddReputationPoints),
-                    new[] { typeof(float), typeof(ReputationChangeSource), typeof(string) });
+                var target = parameters != null
+                    ? AccessTools.Method(type, methodName, parameters)
+                    : AccessTools.Method(type, methodName, Type.EmptyTypes);
+
+                if (target == null && parameters == null)
+                {
+                    target = AccessTools.Method(type, methodName);
+                }
+
                 if (target == null)
                 {
-                    Log.LogError("Could not find ReputationService.AddReputationPoints. Reputation will not be tracked.");
+                    Log.LogError($"Could not find {label}. The related feature will not work.");
                     return;
                 }
 
-                m_harmony.Patch(target, postfix: new HarmonyMethod(typeof(ReputationPatch), nameof(ReputationPatch.Postfix)));
+                m_harmony.Patch(target, postfix: new HarmonyMethod(patchType, postfixName));
                 Log.LogInfo($"Patched {target.DeclaringType.FullName}.{target.Name}");
             }
             catch (Exception e)
             {
-                Log.LogError("Failed to patch ReputationService.AddReputationPoints");
+                Log.LogError($"Failed to patch {label}");
                 Log.LogError(e);
             }
         }
 
         private static void OnCycleEnded()
         {
-            Log.LogInfo("Cycle ended: cycle blessing counters were reset by ATS_API.");
+            Log.LogInfo("Cycle ended: cycle buff counters and buff list were reset by ATS_API.");
         }
     }
 }

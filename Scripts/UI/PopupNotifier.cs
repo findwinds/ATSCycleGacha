@@ -27,16 +27,16 @@ namespace Forwindz.CycleBlessings
                 return;
             }
 
-            s_statusHeader = Text("status_header", "循环祝福 / Cycle Blessings", "Cycle Blessings / 循环祝福");
+            s_statusHeader = Text("status_header", "循环增益 / Cycle Buffs", "Cycle Buffs / 循环增益");
             s_statusBody = Text(
                 "status_body",
-                "指令：{0} / {1}\n满意度：{2} / {1}\n森林事件：{3} / {1}\n\n本循环祝福（{4}）：\n{5}",
-                "Orders: {0} / {1}\nResolve: {2} / {1}\nGlade events: {3} / {1}\n\nBlessings this cycle ({4}):\n{5}");
-            s_announceHeader = Text("announce_header", "循环祝福 / Cycle Blessing", "Cycle Blessing / 循环祝福");
+                "指令：{0} / {1}\n满意度：{2} / {1}\n森林事件：{3} / {1}\n\n本循环增益（{4}）：\n{5}",
+                "Orders: {0} / {1}\nResolve: {2} / {1}\nGlade events: {3} / {1}\n\nBuffs this cycle ({4}):\n{5}");
+            s_announceHeader = Text("announce_header", "循环增益 / Cycle Buff", "Cycle Buff / 循环增益");
             s_announceBody = Text(
                 "announce_body",
-                "你的{0}声望累计达到 {1}，获得祝福：\n{2}\n\n{3}",
-                "Your {0} reputation reached {1}. Blessing earned:\n{2}\n\n{3}");
+                "你的{0}声望累计达到 {1}，获得增益：\n{2}\n\n{3}",
+                "Your {0} reputation reached {1}. Buff earned:\n{2}\n\n{3}");
         }
 
         public static void RegisterHotkey()
@@ -59,7 +59,7 @@ namespace Forwindz.CycleBlessings
                 Hotkeys.New(
                     PluginInfo.PLUGIN_GUID,
                     "cycleBlessingsStatus",
-                    "Cycle Blessings status / 循环祝福状态",
+                    "Cycle Buffs status / 循环增益状态",
                     new List<KeyCode> { keyCode },
                     ShowStatus);
                 Plugin.Log.LogInfo($"Registered status hotkey {keyCode}.");
@@ -93,13 +93,13 @@ namespace Forwindz.CycleBlessings
                         threshold,
                         state.resolveReputation.ToString("0.#"),
                         state.gladeReputation.ToString("0.#"),
-                        state.blessingIds.Count.ToString(),
+                        state.effectNames.Count.ToString(),
                         blessings)
                     .WaitForDecision(ContinueButton());
             }
             catch (Exception e)
             {
-                Plugin.Log.LogError("Could not show cycle blessings status popup");
+                Plugin.Log.LogError("Could not show cycle buffs status popup");
                 Plugin.Log.LogError(e);
             }
         }
@@ -113,9 +113,9 @@ namespace Forwindz.CycleBlessings
 
             try
             {
-                string names = string.Join("、", defs.Select(a => a.name).ToArray());
+                string names = string.Join("、", defs.Select(BlessingService.GetDisplayName).ToArray());
                 string descriptions = string.Join("\n", defs
-                    .Select(a => a.description)
+                    .Select(BlessingService.GetDescription)
                     .Where(a => !string.IsNullOrEmpty(a))
                     .ToArray());
 
@@ -125,7 +125,7 @@ namespace Forwindz.CycleBlessings
                         PluginInfo.PLUGIN_GUID,
                         s_announceHeader,
                         s_announceBody,
-                        BlessingService.GetDisplayName(dimension),
+                        BlessingService.GetDimensionDisplayName(dimension),
                         total.ToString("0.#"),
                         names,
                         descriptions)
@@ -133,22 +133,21 @@ namespace Forwindz.CycleBlessings
             }
             catch (Exception e)
             {
-                Plugin.Log.LogWarning("Could not show the blessing popup: " + e.Message);
+                Plugin.Log.LogWarning("Could not show the buff popup: " + e.Message);
             }
         }
 
         private static string FormatBlessings(CycleState state)
         {
-            if (state.blessingIds.Count == 0)
+            if (state.effectNames.Count == 0)
             {
                 return "（无）/ (none)";
             }
 
             List<string> names = new List<string>();
-            for (int i = 0; i < state.blessingIds.Count; i++)
+            for (int i = 0; i < state.effectNames.Count; i++)
             {
-                BlessingDef def = BlessingService.FindDef(state.blessingIds[i]);
-                names.Add(def != null ? def.name : state.blessingIds[i] + " (missing)");
+                names.Add(BlessingService.GetDisplayName(state.effectNames[i]));
             }
 
             return string.Join("\n", names.ToArray());
