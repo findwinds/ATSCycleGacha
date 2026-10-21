@@ -6,6 +6,7 @@
 - Winning a settlement now grants 10 tickets (configurable via `ticketsPerSettlement`).
 - Every draw charges a 10-point free-draw meter; charge depends on rarity (Legendary 10, Epic 5, Rare 3, Uncommon 2, Common 1).
 - Rewards can now combine an effect, goods and villagers in `cycle_gacha.json`.
+- Old `cycle_gacha.json` files are backed up as `.old` and replaced with the new default schema.
 
 # 0.3.0
 
