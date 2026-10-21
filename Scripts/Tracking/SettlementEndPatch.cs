@@ -13,8 +13,9 @@ namespace Forwindz.CycleBlessings
         {
             try
             {
-                if (__instance.State.finished ||
-                    __instance.State.reputation >= __instance.GetReputationToWin())
+                // Only the reputation threshold is a reliable win signal; State.finished is
+                // also true after a loss, and GameLost has its own postfix.
+                if (__instance.State.reputation >= __instance.GetReputationToWin())
                 {
                     TicketService.OnSettlementWon();
                 }
