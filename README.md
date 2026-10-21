@@ -155,6 +155,7 @@
 4. 如果日志出现 `Unclassified reputation source 'XXX'`，把 `XXX` 加进 `reputationSources` 对应维度。
 5. 如果日志出现 `Could not find effect 'XXX'`，说明配置里的 `effect` 名字在当前游戏版本不存在；用 ATS_API 的 `EffectTypes` 枚举名替换。
 6. 少数 world event 效果可能只适合在特定事件/地图阶段使用；默认池已经挑了通用、正面的效果。如果某个效果应用后没有明显变化，换一个即可。
+7. buff 通过 `EffectModel.Apply()` 应用到定居点，并显示在 F8 面板；不会写进大地图的 World Event 活动列表。如果希望大地图也显示，可以后续把 effect 名字同步到 `WorldStateService.Cycle.activeEventsEffects`。
 
 兼容性注意：如果同时使用了会**完全替换** `ReputationService.AddReputationPoints` 或 `EffectsService.AddLateInitialEffects` 的作弊/倍率类 mod（即 prefix 返回 `false`、不执行原方法），本 mod 对应的 postfix 可能不会被执行。普通数值修改、基石、事件类 mod 不受影响。
 
