@@ -131,7 +131,8 @@ namespace Forwindz.CycleBlessings
             }
 
             CycleStateStore.MarkSettlementApplied();
-            Plugin.Log.LogInfo($"Applied {applied}/{effectNames.Count} cycle buff(s) to the new settlement.");
+            string appliedNames = string.Join(", ", effectNames.Select(GetDisplayName).ToArray());
+            Plugin.Log.LogInfo($"Applied {applied}/{effectNames.Count} cycle buff(s) to the new settlement: {appliedNames}");
         }
 
         public static BlessingDef FindDef(string effectName)
