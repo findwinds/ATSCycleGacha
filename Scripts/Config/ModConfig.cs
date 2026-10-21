@@ -193,6 +193,22 @@ namespace Forwindz.CycleBlessings
             SanitizePool(pools.orders, "order");
             SanitizePool(pools.resolve, "resolve");
             SanitizePool(pools.glade, "glade");
+
+            HashSet<string> ids = new HashSet<string>();
+            CheckDuplicateIds(pools.orders, ids);
+            CheckDuplicateIds(pools.resolve, ids);
+            CheckDuplicateIds(pools.glade, ids);
+        }
+
+        private static void CheckDuplicateIds(List<BlessingDef> pool, HashSet<string> ids)
+        {
+            for (int i = 0; i < pool.Count; i++)
+            {
+                if (!ids.Add(pool[i].id))
+                {
+                    Plugin.Log.LogWarning($"Duplicate blessing id '{pool[i].id}' in cycle_blessings.json. Ids should be unique across all three pools.");
+                }
+            }
         }
 
         private static void SanitizePool(List<BlessingDef> pool, string prefix)
