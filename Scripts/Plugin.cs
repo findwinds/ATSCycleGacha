@@ -8,12 +8,12 @@ using Eremite.Services;
 using HarmonyLib;
 using UnityEngine;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     public static class PluginInfo
     {
-        public const string PLUGIN_GUID = "Forwindz.CycleBlessings";
-        public const string PLUGIN_NAME = "Cycle Blessings";
+        public const string PLUGIN_GUID = "Forwindz.CycleGacha";
+        public const string PLUGIN_NAME = "Cycle Gacha";
         public const string PLUGIN_VERSION = "0.5.0";
     }
 
@@ -38,7 +38,7 @@ namespace Forwindz.CycleBlessings
 
             ModdedSaveManager.ListenForLoadedSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnSaveDataLoaded);
             ModdedSaveManager.ListenForResetCycleSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnCycleReset);
-            EventBus.OnStartGame.AddListener(BlessingService.OnStartGameFallback);
+            EventBus.OnStartGame.AddListener(RewardService.OnStartGameFallback);
             EventBus.OnCycleEnded.AddListener(OnCycleEnded);
 
             PatchGameMethods();
@@ -79,7 +79,7 @@ namespace Forwindz.CycleBlessings
             {
                 Hotkeys.New(
                     PluginInfo.PLUGIN_GUID,
-                    "cycleBlessingsGacha",
+                    "cycleGacha",
                     "Cycle Gacha / 循环抽奖",
                     new List<KeyCode> { keyCode },
                     GachaWindow.Toggle);
@@ -100,8 +100,8 @@ namespace Forwindz.CycleBlessings
                 typeof(EffectsService),
                 nameof(EffectsService.AddLateInitialEffects),
                 null,
-                typeof(EffectsPatch),
-                nameof(EffectsPatch.Postfix));
+                typeof(SettlementStartPatch),
+                nameof(SettlementStartPatch.Postfix));
 
             Patch(
                 "ReputationService.CheckForWin",

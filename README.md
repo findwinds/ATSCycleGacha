@@ -1,4 +1,4 @@
-# Cycle Blessings / 循环抽奖
+# Cycle Gacha / 循环抽奖
 
 一个《Against the Storm / 风暴之城》的 BepInEx 5 + ATS_API mod。
 
@@ -110,15 +110,15 @@
 
 1. 安装 **BepInEx 5.4.x**（Thunderstore 的 BepInExPack 即可）。
 2. 安装 **ATS_API 3.7.0**（Thunderstore: `ATS_API_Devs-API`）。
-3. 把编译好的 `CycleBlessings.dll`、`manifest.json`、`icon.png` 放进：
-   `BepInEx/plugins/Forwindz-CycleBlessings/`
+3. 把编译好的 `CycleGacha.dll`、`manifest.json`、`icon.png` 放进：
+   `BepInEx/plugins/Forwindz-CycleGacha/`
 4. 启动游戏一次，插件目录下会生成 `cycle_gacha.json`。
 
 ---
 
 ## 4. 配置说明
 
-`cycle_gacha.json` 位于 `CycleBlessings.dll` 同目录。
+`cycle_gacha.json` 位于 `CycleGacha.dll` 同目录。
 
 ```json
 {
@@ -214,8 +214,8 @@
 ## 7. 目录结构
 
 ```
-ATSCycleBlessings/
-├─ CycleBlessings.csproj
+ATSCycleGacha/
+├─ CycleGacha.csproj
 ├─ Directory.Build.props.example   # 复制为 Directory.Build.props 并填路径
 ├─ NuGet.Config
 ├─ Scripts/
@@ -225,9 +225,9 @@ ATSCycleBlessings/
 │  ├─ State/CycleStateStore.cs     # CurrentCycle 读写、循环重置、对局标记
 │  ├─ Gacha/TicketService.cs       # 对局结束发券
 │  ├─ Gacha/GachaService.cs        # 生成/抽取/重置转盘、进度与 +1 券
-│  ├─ Rewards/BlessingService.cs   # 开局应用效果/物资/居民、奖励显示
+│  ├─ Rewards/RewardService.cs    # 开局应用效果/物资/居民、奖励显示
 │  ├─ Tracking/SettlementEndPatch.cs # CheckForWin/ForceGameWin/GameLost postfix
-│  ├─ Tracking/EffectsPatch.cs     # AddLateInitialEffects postfix
+│  ├─ Tracking/SettlementStartPatch.cs # AddLateInitialEffects postfix
 │  └─ UI/GachaWindow.cs            # 大地图 IMGUI 抽奖界面
 └─ ModPackageInfo/
    ├─ manifest.json

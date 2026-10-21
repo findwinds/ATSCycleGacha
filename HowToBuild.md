@@ -34,16 +34,16 @@ dotnet build -c Release
 构建成功后，`Deploy` target 会把这些文件复制到：
 
 ```
-$(BepInExPath)\BepInEx\plugins\Forwindz-CycleBlessings\
+$(BepInExPath)\BepInEx\plugins\Forwindz-CycleGacha\
 ```
 
-包括 `CycleBlessings.dll`、`manifest.json`、`icon.png`、`CHANGELOG.md`、`README.md`。
+包括 `CycleGacha.dll`、`manifest.json`、`icon.png`、`CHANGELOG.md`、`README.md`。
 
 ## 3. 运行前检查
 
 1. 游戏目录下已安装 BepInEx，且 `BepInEx/plugins/ATS_API_Devs-API/API.dll` 存在。
 2. `BepInEx/LogOutput.log` 中能看到：
-   - `Cycle Blessings v0.5.0 loaded`
+   - `Cycle Gacha v0.5.0 loaded`
    - `Patched Eremite.Services.ReputationService.CheckForWin`
    - `Patched Eremite.Services.ReputationService.ForceGameWin`
    - `Patched Eremite.Services.ReputationService.GameLost`

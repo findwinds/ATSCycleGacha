@@ -1,7 +1,7 @@
 using System;
 using ATS_API.SaveLoading;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// Wraps ModSaveData.CurrentCycle. ATS_API replaces CurrentCycle with a fresh SaveData on
@@ -9,9 +9,9 @@ namespace Forwindz.CycleBlessings
     /// </summary>
     public static class CycleStateStore
     {
-        private const string SaveKey = "CycleBlessings_State_v4";
-        private const string SettlementAppliedKey = "CycleBlessings_BuffsApplied_v1";
-        private const string SettlementTicketKey = "CycleBlessings_TicketGranted_v1";
+        private const string SaveKey = "CycleGacha_State_v1";
+        private const string SettlementAppliedKey = "CycleGacha_SettlementApplied_v1";
+        private const string SettlementTicketKey = "CycleGacha_TicketGranted_v1";
 
         private static ModSaveData s_saveData;
         private static CycleState s_state;
@@ -34,7 +34,7 @@ namespace Forwindz.CycleBlessings
         {
             s_saveData = data;
             s_state = LoadState(data);
-            Plugin.Log.LogInfo($"Cycle blessings save data loaded ({fileState}): {s_state.Describe()}");
+            Plugin.Log.LogInfo($"Cycle gacha save data loaded ({fileState}): {s_state.Describe()}");
         }
 
         public static void OnCycleReset(ModSaveData data)
@@ -42,7 +42,7 @@ namespace Forwindz.CycleBlessings
             s_saveData = data;
             s_state = new CycleState();
             data.CurrentCycle.SetValue(SaveKey, s_state);
-            Plugin.Log.LogInfo("Cycle blessings state reset for the new cycle.");
+            Plugin.Log.LogInfo("Cycle gacha state reset for the new cycle.");
 
             try
             {
@@ -74,7 +74,7 @@ namespace Forwindz.CycleBlessings
             }
             catch (Exception e)
             {
-                Plugin.Log.LogWarning("Could not save cycle blessings immediately: " + e.Message);
+                Plugin.Log.LogWarning("Could not save cycle gacha immediately: " + e.Message);
             }
         }
 
@@ -174,13 +174,13 @@ namespace Forwindz.CycleBlessings
             {
                 s_saveData = ModdedSaveManager.GetSaveData(PluginInfo.PLUGIN_GUID);
                 s_state = LoadState(s_saveData);
-                Plugin.Log.LogInfo($"Cycle blessings state initialized: {s_state.Describe()}");
+                Plugin.Log.LogInfo($"Cycle gacha state initialized: {s_state.Describe()}");
             }
             catch (Exception e)
             {
                 // Happens before ATS_API finished loading save data (for example during the main menu).
                 s_state = new CycleState();
-                Plugin.Log.LogDebug("Cycle blessings state is not available yet: " + e.Message);
+                Plugin.Log.LogDebug("Cycle gacha state is not available yet: " + e.Message);
             }
         }
 
@@ -193,7 +193,7 @@ namespace Forwindz.CycleBlessings
             }
             catch (Exception e)
             {
-                Plugin.Log.LogError("Failed to read cycle blessings from the save, starting a new state.");
+                Plugin.Log.LogError("Failed to read cycle gacha from the save, starting a new state.");
                 Plugin.Log.LogError(e);
             }
 

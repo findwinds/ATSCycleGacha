@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     [Serializable]
     public class GoodAmount
@@ -59,7 +59,7 @@ namespace Forwindz.CycleBlessings
     }
 
     [Serializable]
-    public class BlessingPools
+    public class RewardPools
     {
         public List<RewardDef> legendary = new List<RewardDef>();
         public List<RewardDef> epic = new List<RewardDef>();
@@ -87,7 +87,7 @@ namespace Forwindz.CycleBlessings
 
         public WheelCounts wheel = new WheelCounts();
         public ChargeValues charge = new ChargeValues();
-        public BlessingPools pools = new BlessingPools();
+        public RewardPools pools = new RewardPools();
 
         [JsonIgnore]
         public static ModConfig Current { get; private set; }
@@ -185,7 +185,7 @@ namespace Forwindz.CycleBlessings
         {
             if (wheel == null) wheel = new WheelCounts();
             if (charge == null) charge = new ChargeValues();
-            if (pools == null) pools = new BlessingPools();
+            if (pools == null) pools = new RewardPools();
 
             if (pools.legendary == null) pools.legendary = new List<RewardDef>();
             if (pools.epic == null) pools.epic = new List<RewardDef>();

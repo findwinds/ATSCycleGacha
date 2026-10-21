@@ -1,6 +1,6 @@
 using System;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// One draw ticket per completed settlement. The CurrentSettlement flag prevents the

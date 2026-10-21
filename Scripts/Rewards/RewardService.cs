@@ -5,13 +5,13 @@ using ATS_API.Helpers;
 using Eremite;
 using Eremite.Model;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// Applies the rewards won from the cycle gacha. A reward can be an EffectModel buff,
     /// a resource bundle and/or villagers; all three are re-applied at every new settlement.
     /// </summary>
-    public static class BlessingService
+    public static class RewardService
     {
         private static readonly System.Random s_random = new System.Random(Environment.TickCount);
         private static readonly HashSet<string> s_loggedMissingEffects = new HashSet<string>();

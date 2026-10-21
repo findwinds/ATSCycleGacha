@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     [Serializable]
     public class WheelOption

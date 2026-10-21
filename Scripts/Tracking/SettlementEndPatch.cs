@@ -1,7 +1,7 @@
 using System;
 using Eremite.Services;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// The game marks a settlement win through ReputationService.CheckForWin (natural win)

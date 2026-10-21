@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// Small IMGUI overlay for the WorldMap scene. It does not depend on the game's UI
@@ -213,7 +213,7 @@ namespace Forwindz.CycleBlessings
 
                 for (int i = 0; i < order.Count; i++)
                 {
-                    GUILayout.Label($"{counts[order[i]]}x  {BlessingService.GetDisplayName(order[i])}", s_label);
+                    GUILayout.Label($"{counts[order[i]]}x  {RewardService.GetDisplayName(order[i])}", s_label);
                 }
             }
 
@@ -226,7 +226,7 @@ namespace Forwindz.CycleBlessings
         {
             GUILayout.BeginVertical(CardStyle(option.rarity), GUILayout.Width(176), GUILayout.Height(104));
             GUILayout.Label(RarityLabel(option.rarity), s_rarity);
-            GUILayout.Label(BlessingService.GetDisplayName(option.rewardId), s_card);
+            GUILayout.Label(RewardService.GetDisplayName(option.rewardId), s_card);
             GUILayout.Label($"+{ModConfig.Current.GetCharge(option.rarity)} 进度 / charge", s_rarity);
             GUILayout.EndVertical();
             GUILayout.Space(2);
@@ -297,8 +297,8 @@ namespace Forwindz.CycleBlessings
 
         private static string FormatResult(WheelOption option)
         {
-            string name = BlessingService.GetDisplayName(option.rewardId);
-            string description = BlessingService.GetDescription(option.rewardId);
+            string name = RewardService.GetDisplayName(option.rewardId);
+            string description = RewardService.GetDescription(option.rewardId);
             if (description.Length > 300)
             {
                 description = description.Substring(0, 300) + "...";

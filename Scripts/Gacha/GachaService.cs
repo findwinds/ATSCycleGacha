@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Forwindz.CycleBlessings
+namespace Forwindz.CycleGacha
 {
     /// <summary>
     /// Owns the wheel: by default 1 Legendary, 2 Epic, 4 Rare, 8 Uncommon and 16 Common.
