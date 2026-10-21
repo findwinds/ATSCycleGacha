@@ -115,7 +115,7 @@
   }
   ```
   - `good` 优先按 `ATS_API.Helpers.GoodsTypes` 的枚举名解析（如 `Mat_Raw_Wood`、`Tools_Simple_Tools`）；解析不到时再当作游戏内部物品名（如 `[Mat Raw] Wood`）。
-  - `villagers` 大于 0 时发放居民；`race` 留空表示从当前定居点已有的种族里随机。
+  - `villagers` 大于 0 时发放居民；`race` 留空表示从当前定居点已有的种族里随机，也可以填游戏内部种族名（如 `Human`、`Beaver`、`Foxes`、`Frog`、`Bat`）。
   - `weight` 是抽取权重，默认 1；设为 0 可以让该条目永不抽中（不用删除它）。
 
 改完配置需要重启游戏（或回到主菜单重新进入）生效。
