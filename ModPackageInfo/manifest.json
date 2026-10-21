@@ -1,0 +1,10 @@
+{
+  "name": "CycleBlessings",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/findwinds/ATSCycleBlessings",
+  "description": "Earn cycle-wide blessings by collecting order, resolve and glade-event reputation. 用指令、满意度和森林事件获得的声望兑换整轮循环生效的祝福。",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100",
+    "ATS_API_Devs-API-3.7.0"
+  ]
+}

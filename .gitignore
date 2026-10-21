@@ -1,0 +1,8 @@
+.vs
+.vscode
+obj/
+bin/
+Assembly-CSharp.dll
+Directory.Build.props
+Build/
+*.user

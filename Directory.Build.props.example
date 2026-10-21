@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Folder that contains BepInEx\plugins. Usually the Thunderstore profile root. -->
+    <BepInExPath>C:/Users/Administrator/AppData/Roaming/Thunderstore Mod Manager/DataFolder/AgainstTheStorm/profiles/Default</BepInExPath>
+    <!-- Against the Storm installation folder (contains "Against the Storm_Data"). -->
+    <StormPath>D:/Program Files (x86)/Steam/steamapps/common/Against the Storm</StormPath>
+  </PropertyGroup>
+</Project>
