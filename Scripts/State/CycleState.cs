@@ -97,6 +97,8 @@ namespace Forwindz.CycleBlessings
                 effectNames = new List<string>();
             }
 
+            effectNames.RemoveAll(string.IsNullOrEmpty);
+
             if (ordersReputation < 0f) ordersReputation = 0f;
             if (resolveReputation < 0f) resolveReputation = 0f;
             if (gladeReputation < 0f) gladeReputation = 0f;
