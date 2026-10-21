@@ -35,6 +35,7 @@ namespace Forwindz.CycleBlessings
 
             ModdedSaveManager.ListenForLoadedSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnSaveDataLoaded);
             ModdedSaveManager.ListenForResetCycleSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnCycleReset);
+            EventBus.OnStartGame.AddListener(BlessingService.OnStartGameFallback);
             EventBus.OnCycleEnded.AddListener(OnCycleEnded);
 
             PatchGameMethods();

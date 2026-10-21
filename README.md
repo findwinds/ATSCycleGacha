@@ -61,7 +61,7 @@
 - **Field Engineering Station / 战地工程站**：解锁带燃料棒配方的临时工程站。
 - **Syndicate Trader / 辛迪加商人**：获得召唤辛迪加商人的主动能力。
 
-这些都可以在 `cycle_blessings.json` 里替换成任意 `EffectTypes` 效果（不限于 `[WE]`），比如原版基石、服务建筑加成、生产加成等。
+这些都可以在 `cycle_blessings.json` 里替换成任意 `EffectTypes` 效果（不限于 `[WE]`），比如原版基石、服务建筑加成、生产加成等。建议只选**正面、可在定居点应用**的效果；负面或剧本专用效果可能不符合预期。
 
 ---
 

@@ -80,6 +80,28 @@ namespace Forwindz.CycleBlessings
         }
 
         /// <summary>
+        /// Fallback for the very unlikely case where AddLateInitialEffects is missing or runs
+        /// before the mod save data is loaded. The settlement-applied flag makes this idempotent.
+        /// </summary>
+        public static void OnStartGameFallback(bool isNewGame)
+        {
+            if (!isNewGame)
+            {
+                return;
+            }
+
+            try
+            {
+                ApplyCycleBuffsAtSettlementStart();
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError("Failed to apply cycle buffs from the OnStartGame fallback");
+                Plugin.Log.LogError(e);
+            }
+        }
+
+        /// <summary>
         /// Called by a Harmony postfix on EffectsService.AddLateInitialEffects. This is the
         /// same point where the game applies world-event and embark effects, so the settlement
         /// state and Settings are ready.
