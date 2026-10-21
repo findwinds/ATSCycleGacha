@@ -67,10 +67,12 @@ namespace Forwindz.CycleBlessings
                 return;
             }
 
-            Rect rect = new Rect(24, 24, 270, 60);
-            GUI.Box(rect, GUIContent.none);
-            GUI.Label(new Rect(rect.x + 10, rect.y + 7, rect.width - 20, 24), $"抽奖券 / Tickets: {state.tickets}", s_title);
-            GUI.Label(new Rect(rect.x + 10, rect.y + 31, rect.width - 20, 22), $"按 {ModConfig.Current.gachaHotkey} 打开抽奖 / Open gacha", s_label);
+            Rect rect = new Rect(24, 24, 280, 60);
+            string label = "抽奖券 / Tickets: " + state.tickets + "\n按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
+            if (GUI.Button(rect, label, s_button))
+            {
+                s_show = true;
+            }
         }
 
         private static void DrawWindow(int id)
