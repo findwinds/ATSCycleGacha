@@ -22,6 +22,14 @@ namespace Forwindz.CycleGacha
         public bool wheelGenerated;
         public List<WheelOption> wheel = new List<WheelOption>();
         public List<string> rewardIds = new List<string>();
+
+        /// <summary>
+        /// Rewards already handed to the game's cycle bonus state, one entry per registration.
+        /// Kept separately from rewardIds so rewards drawn by build 0.5.0/0.6.0 (which applied
+        /// themselves instead) can be registered exactly once when the save is upgraded. Repeated
+        /// draws of the same reward stack, so this is compared by count, not by membership.
+        /// </summary>
+        public List<string> registeredRewardIds = new List<string>();
         public int drawsSinceWheelGenerated;
         public int totalDraws;
 
@@ -40,6 +48,11 @@ namespace Forwindz.CycleGacha
                 rewardIds = new List<string>();
             }
 
+            if (registeredRewardIds == null)
+            {
+                registeredRewardIds = new List<string>();
+            }
+
             for (int i = wheel.Count - 1; i >= 0; i--)
             {
                 WheelOption option = wheel[i];
@@ -50,6 +63,7 @@ namespace Forwindz.CycleGacha
             }
 
             rewardIds.RemoveAll(string.IsNullOrEmpty);
+            registeredRewardIds.RemoveAll(string.IsNullOrEmpty);
 
             if (tickets < 0) tickets = 0;
             if (drawsSinceWheelGenerated < 0) drawsSinceWheelGenerated = 0;

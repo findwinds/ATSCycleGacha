@@ -5,7 +5,7 @@
     <AssemblyName>CycleGacha</AssemblyName>
     <RootNamespace>Forwindz.CycleGacha</RootNamespace>
     <Description>Win settlements for draw tickets, then spin a cycle-wide gacha for resources, population and percentage buffs.</Description>
-    <Version>0.5.0</Version>
+    <Version>0.9.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <DebugType>Full</DebugType>
@@ -14,7 +14,8 @@
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
-    <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+    <!-- Removed BepInEx.PluginInfoProps: it generates Forwindz.CycleGacha.PluginInfo
+         (CS0101 duplicate) and Scripts/Plugin.cs already declares it. -->
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.15" IncludeAssets="compile" />
   </ItemGroup>
 
@@ -33,6 +34,17 @@
     </Reference>
     <Reference Include="UniTask">
       <HintPath>$(StormPath)\Against the Storm_Data\Managed\UniTask.dll</HintPath>
+    </Reference>
+    <!-- Required by the game's own types: SO derives from SerializedScriptableObject (Sirenix),
+         and ATS_API.Hotkeys exposes Unity.InputSystem callback signatures. -->
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(StormPath)\Against the Storm_Data\Managed\Sirenix.Serialization.dll</HintPath>
+    </Reference>
+    <Reference Include="Sirenix.Utilities">
+      <HintPath>$(StormPath)\Against the Storm_Data\Managed\Sirenix.Utilities.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(StormPath)\Against the Storm_Data\Managed\Unity.InputSystem.dll</HintPath>
     </Reference>
   </ItemGroup>
 

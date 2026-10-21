@@ -35,6 +35,10 @@ namespace Forwindz.CycleGacha
             s_saveData = data;
             s_state = LoadState(data);
             Plugin.Log.LogInfo($"Cycle gacha save data loaded ({fileState}): {s_state.Describe()}");
+
+            // Restore rewards drawn by a build that applied them by hand instead of registering
+            // them with the game's cycle bonuses. No-ops until the world state is loaded.
+            RewardService.EnsureRegistered();
         }
 
         public static void OnCycleReset(ModSaveData data)

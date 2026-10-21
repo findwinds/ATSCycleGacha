@@ -55,6 +55,10 @@ namespace Forwindz.CycleGacha
                 state.totalDraws++;
                 state.rewardIds.Add(option.rewardId);
 
+                // Buff rewards go into the game's cycle effect list right away, so the game
+                // applies and displays them like a world-event reward from the next settlement on.
+                RewardService.OnRewardDrawn(option.rewardId);
+
                 int gainedCharge = ModConfig.Current.GetCharge(option.rarity);
                 state.drawCharge += gainedCharge;
                 while (state.drawCharge >= MaxCharge)

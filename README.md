@@ -91,18 +91,16 @@
 
 ## 2. 界面
 
-- 大地图（WorldMap）场景按 **F7**，或点击左上角券数，打开/关闭抽奖窗口。
-- 窗口顶部显示抽奖券数量和每个稀有度的剩余/初始数量。
-- 31 个选项以 5 列卡片网格显示（可滚动），按稀有度着色：
-  - Legendary 橙、Epic 紫、Rare 蓝、Uncommon 绿、Common 灰白边框。
-  - 每张卡显示抽到后增加的进度（`+N`）。
-- 按钮：
-  - **抽取 / Draw**：消耗 1 张券；抽中的选项剔除并显示结果。
-  - **重置转盘 / Reset**：至少抽过一次后可用，免费重新生成 31 个选项。
-  - **关闭 / Close**。
-- 进度条：显示当前 `x/10`；满 10 点自动 +1 张抽奖券，溢出保留。
-- 窗口下方列出本循环已获得的奖励（重复的显示 `Nx`）。
-- 界面是 IMGUI 卡片网格（不是带动画的转盘），抽取为即时随机；会尝试加载微软雅黑/黑体显示中文。
+- 大地图（WorldMap）场景按 **F7**，或点击左上角的抽奖券徽标，打开/关闭抽奖窗口。
+- 外观沿用游戏原版风格：深色皮革底 + 细金边（程序生成九宫格贴图）、羊皮纸色文字、金色标题，
+  卡片边框按稀有度上色并显示真实物品图标（`GoodModel.icon` / `EffectModel.GetIcon()`）：
+  - 传说 金橙、史诗 紫、稀有 蓝、罕见 绿、普通 灰白。
+- 布局分两栏：
+  - 左栏：31 个选项的 5 列卡片网格（可滚动），每张卡显示图标、名称、稀有度与抽到后的进度（`+N`）。
+  - 右栏：抽奖进度条（`x/10`，满 10 点 +1 券）、各稀有度剩余/初始数量、
+    **抽取** / **重置转盘** 按钮，以及本循环已获得的奖励列表（带图标，重复的显示 `×N`）。
+- 标题栏右上角显示抽奖券数量与关闭按钮；窗口居中、按当前分辨率自适应大小。
+- 界面是 IMGUI 绘制的（不是带动画的转盘），抽取为即时随机；中文使用系统微软雅黑/黑体。
 
 ---
 
@@ -181,11 +179,13 @@
 - **发券**：Harmony postfix 挂在 `Eremite.Services.ReputationService` 的 `CheckForWin`（声望达到阈值）、`ForceGameWin`（胜利结算）和 `GameLost`（失败）上；`CurrentSettlement` 标记保证每局最多一次发券。每局发 `ticketsPerSettlement` 张（默认 10）。
 - **循环持久化**：抽奖券、进度、转盘、已抽到的奖励 ID 存在 ATS_API 的 `ModSaveData.CurrentCycle`；`WorldCalendarService.OnCycleEnded` 时 API 自动清空（包括券、进度、转盘和已抽内容）。
 - **抽奖**：每次从剩余选项里均匀随机一个，剔除后扣 1 券，按稀有度加进度；满 10 点 +1 券，溢出保留。
-- **应用奖励**：Harmony postfix 挂在 `Eremite.Services.EffectsService.AddLateInitialEffects` 上（游戏应用 world event / embark 效果的同一阶段）：
-  - `effect` → `SO.Settings.GetEffect(name).Apply()`
-  - `goods` → `Serviceable.StorageService.Main.Goods.Add(name, amount)`
-  - `villagers` → `SO.VillagersService.SpawnNewVillager(race)`
-  - 另有 `OnStartGame` 兜底，用 `CurrentSettlement` 标记防重复。
+- **应用奖励**：不自己 apply，而是把奖励交给游戏自己的循环加成系统（世界事件给循环奖励走的就是这条路）：
+  - `effect` → `SO.CycleEffectsService.AddEmbarkEffect(效果内部名)`，写进 `WorldStateService.CycleEffects.bonusEmbarkEffects`
+  - `goods` → `SO.CycleEffectsService.ChangeEmbarkGoods(new Good(物资名, 数量))`，写进 `bonusEmbarkGoods`
+  - `villagers` → `SO.CycleEffectsService.ChangeEmbarkVillagers(n)`，写进 `bonusEmbarkVillagers`
+  - 之后游戏自己完成剩下的：`CaravanGenerator` 把三项抄进车队 → `RegularGameConditionsCreator.SetUpEmbarkBonuses` 拼成 `embarkEffects` / `embarkGoods` → 开局时 `EffectsService.AddLateInitialEffects` 应用加成、`StorageService.StoreInitialGoods` 以 `InitialCaravan` 入库物资、`CaravanGenerator.GetVillagersAmount` 决定初始人口；大地图的车队界面（`CaravanPickSlot`）会列出这些加成。
+  - 循环结束时 `CycleEffectsService.OnCycleEnded()` 重建这份状态，所以奖励随循环清空，和本 mod 自己的存档数据同步。
+  - 旧版本（0.5.0/0.6.0）自己动手应用的奖励，会在读档后按 `registeredRewardIds` 的差集补登记一次，不会重复。
 - **抽奖 UI**：插件 `OnGUI` 里判断当前场景是 `WorldMap`，用 Unity IMGUI 画窗口；热键通过 ATS_API 的 `Hotkeys` 注册。
 - **不改原声望/原效果**：没有监听声望；只读对局结果并调用游戏自己的效果/存储/居民服务。
 

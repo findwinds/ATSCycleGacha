@@ -14,7 +14,7 @@ namespace Forwindz.CycleGacha
     {
         public const string PLUGIN_GUID = "Forwindz.CycleGacha";
         public const string PLUGIN_NAME = "Cycle Gacha";
-        public const string PLUGIN_VERSION = "0.5.0";
+        public const string PLUGIN_VERSION = "0.9.0";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -38,7 +38,6 @@ namespace Forwindz.CycleGacha
 
             ModdedSaveManager.ListenForLoadedSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnSaveDataLoaded);
             ModdedSaveManager.ListenForResetCycleSaveData(PluginInfo.PLUGIN_GUID, CycleStateStore.OnCycleReset);
-            EventBus.OnStartGame.AddListener(RewardService.OnStartGameFallback);
             EventBus.OnCycleEnded.AddListener(OnCycleEnded);
 
             PatchGameMethods();
@@ -52,14 +51,38 @@ namespace Forwindz.CycleGacha
             GachaWindow.Draw();
         }
 
+        private bool m_gameDataPrepared;
+
+        private void Update()
+        {
+            if (m_gameDataPrepared)
+            {
+                return;
+            }
+
+            // Once the game's settings are readable: report what this build resolves, and give the
+            // reward effects their texts. The settlement effect strip shows those texts even when the
+            // session loads straight into a settlement and never visits the world map.
+            if (RewardService.TryLogDataInventory())
+            {
+                RewardService.ApplyAllEffectTexts();
+                m_gameDataPrepared = true;
+            }
+        }
+
         private void OnDestroy()
         {
             if (m_harmony != null)
             {
-                m_harmony.UnpatchAll(PluginInfo.PLUGIN_GUID);
+                m_harmony.UnpatchSelf();
             }
         }
 
+        /// <summary>
+        /// Rewards are not applied by the mod at all: each draw is registered with the game's cycle
+        /// bonus state (SO.CycleEffectsService), which the game then folds into the next caravan and
+        /// applies itself at settlement start. See RewardService for the full chain.
+        /// </summary>
         private void RegisterGachaHotkey()
         {
             string configuredKey = ModConfig.Current.gachaHotkey;
@@ -95,13 +118,17 @@ namespace Forwindz.CycleGacha
         {
             m_harmony = new Harmony(PluginInfo.PLUGIN_GUID);
 
+            // The world map perk strip stores perk names and resolves them through
+            // Settings.GetCycleEffect() while it builds its slots. Runtime perk models for drawn
+            // buffs therefore have to exist before that, otherwise the lookup throws.
             Patch(
-                "EffectsService.AddLateInitialEffects",
-                typeof(EffectsService),
-                nameof(EffectsService.AddLateInitialEffects),
+                "CyclePerksHUD.SetUp",
+                typeof(Eremite.WorldMap.UI.Perks.CyclePerksHUD),
+                "SetUp",
                 null,
-                typeof(SettlementStartPatch),
-                nameof(SettlementStartPatch.Postfix));
+                typeof(CyclePerksHudPatch),
+                nameof(CyclePerksHudPatch.Prefix),
+                true);
 
             Patch(
                 "ReputationService.CheckForWin",
@@ -128,7 +155,7 @@ namespace Forwindz.CycleGacha
                 nameof(SettlementEndPatch.GameLostPostfix));
         }
 
-        private void Patch(string label, Type type, string methodName, Type[] parameters, Type patchType, string postfixName)
+        private void Patch(string label, Type type, string methodName, Type[] parameters, Type patchType, string postfixName, bool asPrefix = false)
         {
             try
             {
@@ -147,7 +174,15 @@ namespace Forwindz.CycleGacha
                     return;
                 }
 
-                m_harmony.Patch(target, postfix: new HarmonyMethod(patchType, postfixName));
+                if (asPrefix)
+                {
+                    m_harmony.Patch(target, prefix: new HarmonyMethod(patchType, postfixName));
+                }
+                else
+                {
+                    m_harmony.Patch(target, postfix: new HarmonyMethod(patchType, postfixName));
+                }
+
                 Log.LogInfo($"Patched {target.DeclaringType.FullName}.{target.Name}");
             }
             catch (Exception e)

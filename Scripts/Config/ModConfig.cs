@@ -85,6 +85,13 @@ namespace Forwindz.CycleGacha
         /// <summary>Tickets granted for one completed settlement.</summary>
         public int ticketsPerSettlement = 10;
 
+        /// <summary>
+        /// Show drawn buffs in the world map's cycle-perk strip (bottom left), the same place world
+        /// event rewards are listed. The game ships no cycle-perk asset for production buffs, so the
+        /// mod creates one at runtime and registers it in Settings' cycle effect lookup.
+        /// </summary>
+        public bool showWorldMapPerkIcons = true;
+
         public WheelCounts wheel = new WheelCounts();
         public ChargeValues charge = new ChargeValues();
         public RewardPools pools = new RewardPools();
