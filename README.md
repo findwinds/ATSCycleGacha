@@ -169,7 +169,7 @@ Common 池共有 18 个候选，每轮转盘从中抽 16 个不重复的。
 
 字段：
 
-- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建默认配置。
+- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建默认配置（0.4.0 的奖励结构变了，需要重新填自定义池）。
 - `gachaHotkey`：大地图打开抽奖窗口的热键，填 `UnityEngine.KeyCode` 的名字，如 `F7`。
 - `grantTicketOnLoss`：失败是否也给券，默认 `false`。
 - `ticketsPerSettlement`：每次胜利给多少张券，默认 `10`。
