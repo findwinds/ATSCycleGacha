@@ -232,6 +232,7 @@ namespace Forwindz.CycleBlessings
             GUILayout.BeginVertical(CardStyle(option.rarity), GUILayout.Width(176), GUILayout.Height(104));
             GUILayout.Label(RarityLabel(option.rarity), s_rarity);
             GUILayout.Label(BlessingService.GetDisplayName(option.rewardId), s_card);
+            GUILayout.Label($"+{ModConfig.Current.GetCharge(option.rarity)} 进度 / charge", s_rarity);
             GUILayout.EndVertical();
             GUILayout.Space(2);
         }
