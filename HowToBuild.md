@@ -43,13 +43,13 @@ $(BepInExPath)\BepInEx\plugins\Forwindz-CycleBlessings\
 
 1. 游戏目录下已安装 BepInEx，且 `BepInEx/plugins/ATS_API_Devs-API/API.dll` 存在。
 2. `BepInEx/LogOutput.log` 中能看到：
-   - `Cycle Blessings v0.3.0 loaded`
+   - `Cycle Blessings v0.4.0 loaded`
    - `Patched Eremite.Services.ReputationService.CheckForWin`
    - `Patched Eremite.Services.ReputationService.ForceGameWin`
    - `Patched Eremite.Services.ReputationService.GameLost`
    - `Patched Eremite.Services.EffectsService.AddLateInitialEffects`
-3. 赢下一局，检查日志是否出现 `+1 draw ticket`；回到大地图按 F7 打开抽奖窗口。
-4. 抽一次后检查日志 `Gacha draw #...`，下一局开局检查 `Applied N/M cycle buff(s)`。
+3. 赢下一局，检查日志是否出现 `+10 draw ticket(s)`；回到大地图按 F7 打开抽奖窗口。
+4. 抽一次后检查日志 `Gacha draw #...`，下一局开局检查 `Applied N/M cycle reward(s)`。
 
 ## 4. 常见构建问题
 

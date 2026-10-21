@@ -14,7 +14,7 @@ namespace Forwindz.CycleBlessings
         {
             try
             {
-                BlessingService.ApplyCycleBuffsAtSettlementStart();
+                BlessingService.ApplyCycleRewardsAtSettlementStart();
             }
             catch (Exception e)
             {

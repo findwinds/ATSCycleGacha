@@ -15,7 +15,8 @@ namespace Forwindz.CycleBlessings
         private const int Columns = 5;
 
         private static bool s_show;
-        private static Rect s_windowRect = new Rect(240, 80, 940, 700);
+        private static Rect s_windowRect = new Rect(240, 40, 940, 760);
+        private static Vector2 s_wheelScroll;
         private static Vector2 s_ownedScroll;
         private static string s_lastResult = "";
         private static bool s_errorLogged;
@@ -28,7 +29,9 @@ namespace Forwindz.CycleBlessings
         private static GUIStyle s_cardEpic;
         private static GUIStyle s_cardRare;
         private static GUIStyle s_cardUncommon;
+        private static GUIStyle s_cardCommon;
         private static GUIStyle s_button;
+        private static Texture2D s_chargeTexture;
 
         public static void Toggle()
         {
@@ -80,13 +83,16 @@ namespace Forwindz.CycleBlessings
         private static void DrawTicketBadge()
         {
             CycleState state = CycleStateStore.State;
-            if (state.tickets <= 0 && !s_show)
+            if (state.tickets <= 0 && state.freeDraws <= 0 && !s_show)
             {
                 return;
             }
 
-            Rect rect = new Rect(24, 24, 280, 60);
-            string label = "抽奖券 / Tickets: " + state.tickets + "\n按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
+            Rect rect = new Rect(24, 24, 290, 62);
+            string label =
+                "抽奖券 / Tickets: " + state.tickets +
+                (state.freeDraws > 0 ? "   免费 / Free: " + state.freeDraws : "") +
+                "\n按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
             if (GUI.Button(rect, label, s_button))
             {
                 s_show = true;
@@ -106,12 +112,14 @@ namespace Forwindz.CycleBlessings
                 $"L {GachaService.CountRemaining("Legendary")}/{config.wheel.legendary}   " +
                 $"E {GachaService.CountRemaining("Epic")}/{config.wheel.epic}   " +
                 $"R {GachaService.CountRemaining("Rare")}/{config.wheel.rare}   " +
-                $"U {GachaService.CountRemaining("Uncommon")}/{config.wheel.uncommon}",
+                $"U {GachaService.CountRemaining("Uncommon")}/{config.wheel.uncommon}   " +
+                $"C {GachaService.CountRemaining("Common")}/{config.wheel.common}",
                 s_label);
             GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
 
+            s_wheelScroll = GUILayout.BeginScrollView(s_wheelScroll, GUILayout.Height(390));
             for (int i = 0; i < state.wheel.Count; i++)
             {
                 if (i % Columns == 0)
@@ -135,11 +143,26 @@ namespace Forwindz.CycleBlessings
                 GUILayout.Label(message, s_label);
             }
 
-            GUILayout.Space(8);
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(6);
+            GUILayout.Label($"抽奖进度 / Draw charge: {state.drawCharge}/{GachaService.MaxCharge}   免费抽 / Free draws: {state.freeDraws}", s_label);
+            Rect chargeBar = GUILayoutUtility.GetRect(520f, 16f);
+            GUI.Box(chargeBar, GUIContent.none);
+            Rect chargeFill = new Rect(
+                chargeBar.x + 2,
+                chargeBar.y + 2,
+                (chargeBar.width - 4) * state.drawCharge / (float)GachaService.MaxCharge,
+                chargeBar.height - 4);
+            GUI.DrawTexture(chargeFill, s_chargeTexture);
+
+            GUILayout.Space(6);
             GUILayout.BeginHorizontal();
-            bool canDraw = state.tickets > 0 && state.wheel.Count > 0;
-            GUI.enabled = canDraw;
-            if (GUILayout.Button("抽取 / Draw", s_button, GUILayout.Height(38)))
+            GUI.enabled = GachaService.CanDraw();
+            string drawLabel = state.freeDraws > 0
+                ? $"免费抽取 / Free Draw ({state.freeDraws})"
+                : "抽取 / Draw";
+            if (GUILayout.Button(drawLabel, s_button, GUILayout.Height(38)))
             {
                 WheelOption option = GachaService.Draw();
                 s_lastResult = option == null
@@ -170,10 +193,10 @@ namespace Forwindz.CycleBlessings
                 GUILayout.Label(s_lastResult, s_label);
             }
 
-            GUILayout.Space(8);
-            GUILayout.Label($"已获得增益 / Owned buffs: {state.effectNames.Count}", s_title);
-            s_ownedScroll = GUILayout.BeginScrollView(s_ownedScroll, GUILayout.Height(110));
-            if (state.effectNames.Count == 0)
+            GUILayout.Space(6);
+            GUILayout.Label($"已获得奖励 / Owned rewards: {state.rewardIds.Count}", s_title);
+            s_ownedScroll = GUILayout.BeginScrollView(s_ownedScroll, GUILayout.Height(90));
+            if (state.rewardIds.Count == 0)
             {
                 GUILayout.Label("（无）/ (none)", s_label);
             }
@@ -181,16 +204,16 @@ namespace Forwindz.CycleBlessings
             {
                 Dictionary<string, int> counts = new Dictionary<string, int>();
                 List<string> order = new List<string>();
-                for (int i = 0; i < state.effectNames.Count; i++)
+                for (int i = 0; i < state.rewardIds.Count; i++)
                 {
-                    string effect = state.effectNames[i];
-                    if (!counts.ContainsKey(effect))
+                    string rewardId = state.rewardIds[i];
+                    if (!counts.ContainsKey(rewardId))
                     {
-                        counts[effect] = 0;
-                        order.Add(effect);
+                        counts[rewardId] = 0;
+                        order.Add(rewardId);
                     }
 
-                    counts[effect]++;
+                    counts[rewardId]++;
                 }
 
                 for (int i = 0; i < order.Count; i++)
@@ -208,7 +231,7 @@ namespace Forwindz.CycleBlessings
         {
             GUILayout.BeginVertical(CardStyle(option.rarity), GUILayout.Width(176), GUILayout.Height(104));
             GUILayout.Label(RarityLabel(option.rarity), s_rarity);
-            GUILayout.Label(BlessingService.GetDisplayName(option.effect), s_card);
+            GUILayout.Label(BlessingService.GetDisplayName(option.rewardId), s_card);
             GUILayout.EndVertical();
             GUILayout.Space(2);
         }
@@ -220,7 +243,8 @@ namespace Forwindz.CycleBlessings
                 case "Legendary": return "传说 Legendary";
                 case "Epic": return "史诗 Epic";
                 case "Rare": return "稀有 Rare";
-                default: return "罕见 Uncommon";
+                case "Uncommon": return "罕见 Uncommon";
+                default: return "普通 Common";
             }
         }
 
@@ -231,7 +255,8 @@ namespace Forwindz.CycleBlessings
                 case "Legendary": return s_cardLegendary;
                 case "Epic": return s_cardEpic;
                 case "Rare": return s_cardRare;
-                default: return s_cardUncommon;
+                case "Uncommon": return s_cardUncommon;
+                default: return s_cardCommon;
             }
         }
 
@@ -239,6 +264,29 @@ namespace Forwindz.CycleBlessings
         {
             GUIStyle style = new GUIStyle(GUI.skin.box);
             style.normal.background = MakeTexture(color);
+            style.padding = new RectOffset(6, 6, 4, 4);
+            return style;
+        }
+
+        private static GUIStyle CreateBorderedCardStyle(Color fill, Color border, int borderWidth)
+        {
+            int size = borderWidth * 4;
+            Texture2D texture = new Texture2D(size, size);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    bool isBorder = x < borderWidth || y < borderWidth ||
+                                    x >= size - borderWidth || y >= size - borderWidth;
+                    texture.SetPixel(x, y, isBorder ? border : fill);
+                }
+            }
+
+            texture.Apply();
+
+            GUIStyle style = new GUIStyle(GUI.skin.box);
+            style.normal.background = texture;
+            style.border = new RectOffset(borderWidth, borderWidth, borderWidth, borderWidth);
             style.padding = new RectOffset(6, 6, 4, 4);
             return style;
         }
@@ -253,8 +301,8 @@ namespace Forwindz.CycleBlessings
 
         private static string FormatResult(WheelOption option)
         {
-            string name = BlessingService.GetDisplayName(option.effect);
-            string description = BlessingService.GetDescription(option.effect);
+            string name = BlessingService.GetDisplayName(option.rewardId);
+            string description = BlessingService.GetDescription(option.rewardId);
             if (description.Length > 300)
             {
                 description = description.Substring(0, 300) + "...";
@@ -301,6 +349,9 @@ namespace Forwindz.CycleBlessings
             s_cardEpic = CreateCardStyle(new Color(0.40f, 0.20f, 0.55f, 1f));
             s_cardRare = CreateCardStyle(new Color(0.15f, 0.30f, 0.55f, 1f));
             s_cardUncommon = CreateCardStyle(new Color(0.18f, 0.40f, 0.20f, 1f));
+            s_cardCommon = CreateBorderedCardStyle(new Color(0.22f, 0.22f, 0.22f, 1f), new Color(0.92f, 0.92f, 0.92f, 1f), 2);
+
+            s_chargeTexture = MakeTexture(new Color(0.25f, 0.75f, 0.95f, 1f));
 
             s_button = new GUIStyle(GUI.skin.button);
             s_button.font = font;

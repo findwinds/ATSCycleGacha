@@ -4,11 +4,14 @@ using System.Collections.Generic;
 namespace Forwindz.CycleBlessings
 {
     /// <summary>
-    /// Owns the 15-option wheel: 1 Legendary, 2 Epic, 4 Rare and 8 Uncommon by default.
+    /// Owns the wheel: by default 1 Legendary, 2 Epic, 4 Rare, 8 Uncommon and 16 Common.
     /// Drawn options are removed; after at least one draw the player may regenerate the wheel.
+    /// Each draw also charges a 10-point free-draw meter based on the drawn rarity.
     /// </summary>
     public static class GachaService
     {
+        public const int MaxCharge = 10;
+
         private static readonly System.Random s_random = new System.Random(Environment.TickCount);
 
         public static bool EnsureWheel()
@@ -22,6 +25,12 @@ namespace Forwindz.CycleBlessings
             return state.wheel.Count > 0;
         }
 
+        public static bool CanDraw()
+        {
+            CycleState state = CycleStateStore.State;
+            return state.wheel.Count > 0 && (state.tickets > 0 || state.freeDraws > 0);
+        }
+
         public static WheelOption Draw()
         {
             try
@@ -32,21 +41,41 @@ namespace Forwindz.CycleBlessings
                 }
 
                 CycleState state = CycleStateStore.State;
-                if (state.tickets <= 0 || state.wheel.Count == 0)
+                if (state.wheel.Count == 0 || (state.tickets <= 0 && state.freeDraws <= 0))
                 {
                     return null;
                 }
 
+                bool freeDraw = state.freeDraws > 0;
                 int index = s_random.Next(state.wheel.Count);
                 WheelOption option = state.wheel[index];
                 state.wheel.RemoveAt(index);
-                state.tickets--;
+
+                if (freeDraw)
+                {
+                    state.freeDraws--;
+                }
+                else
+                {
+                    state.tickets--;
+                }
+
                 state.drawsSinceWheelGenerated++;
                 state.totalDraws++;
-                state.effectNames.Add(option.effect);
+                state.rewardIds.Add(option.rewardId);
+
+                int gainedCharge = ModConfig.Current.GetCharge(option.rarity);
+                state.drawCharge += gainedCharge;
+                while (state.drawCharge >= MaxCharge)
+                {
+                    state.drawCharge -= MaxCharge;
+                    state.freeDraws++;
+                }
 
                 CycleStateStore.PersistImmediately();
-                Plugin.Log.LogInfo($"Gacha draw #{state.totalDraws}: {option.rarity} {option.effect}, {state.effectNames.Count} buff(s) owned.");
+                Plugin.Log.LogInfo(
+                    $"Gacha draw #{state.totalDraws}: {option.rarity} {option.rewardId} " +
+                    $"(charge +{gainedCharge}, {state.drawCharge}/{MaxCharge}, free={state.freeDraws}).");
                 return option;
             }
             catch (Exception e)
@@ -83,14 +112,14 @@ namespace Forwindz.CycleBlessings
             {
                 string rarity = ModConfig.Rarities[r];
                 int count = ModConfig.Current.GetWheelCount(rarity);
-                List<BlessingDef> pool = ModConfig.Current.GetPool(rarity);
-                List<BlessingDef> available = BuildAvailable(pool);
+                List<RewardDef> pool = ModConfig.Current.GetPool(rarity);
+                List<RewardDef> available = BuildAvailable(pool);
 
                 for (int i = 0; i < count; i++)
                 {
                     // Prefer unique entries inside one tier. Fall back to with-replacement
                     // only when the configured pool is smaller than the requested count.
-                    BlessingDef def = PickAndRemove(available);
+                    RewardDef def = PickAndRemove(available);
                     if (def == null)
                     {
                         def = Pick(pool);
@@ -98,12 +127,12 @@ namespace Forwindz.CycleBlessings
 
                     if (def == null)
                     {
-                        Plugin.Log.LogWarning($"No usable {rarity} buffs; the wheel will have fewer than the configured 15 options.");
+                        Plugin.Log.LogWarning($"No usable {rarity} rewards; the wheel will have fewer than the configured options.");
                         break;
                     }
 
                     WheelOption option = new WheelOption();
-                    option.effect = def.effect;
+                    option.rewardId = def.id;
                     option.rarity = rarity;
                     state.wheel.Add(option);
                 }
@@ -129,9 +158,9 @@ namespace Forwindz.CycleBlessings
             return count;
         }
 
-        private static List<BlessingDef> BuildAvailable(List<BlessingDef> pool)
+        private static List<RewardDef> BuildAvailable(List<RewardDef> pool)
         {
-            List<BlessingDef> available = new List<BlessingDef>();
+            List<RewardDef> available = new List<RewardDef>();
             if (pool == null)
             {
                 return available;
@@ -148,7 +177,7 @@ namespace Forwindz.CycleBlessings
             return available;
         }
 
-        private static BlessingDef PickAndRemove(List<BlessingDef> available)
+        private static RewardDef PickAndRemove(List<RewardDef> available)
         {
             if (available == null || available.Count == 0)
             {
@@ -172,7 +201,7 @@ namespace Forwindz.CycleBlessings
                 roll -= available[i].weight;
                 if (roll < 0)
                 {
-                    BlessingDef def = available[i];
+                    RewardDef def = available[i];
                     available.RemoveAt(i);
                     return def;
                 }
@@ -181,7 +210,7 @@ namespace Forwindz.CycleBlessings
             return null;
         }
 
-        private static BlessingDef Pick(List<BlessingDef> pool)
+        private static RewardDef Pick(List<RewardDef> pool)
         {
             if (pool == null || pool.Count == 0)
             {
@@ -191,7 +220,7 @@ namespace Forwindz.CycleBlessings
             int totalWeight = 0;
             for (int i = 0; i < pool.Count; i++)
             {
-                BlessingDef def = pool[i];
+                RewardDef def = pool[i];
                 if (IsSelectable(def))
                 {
                     totalWeight += def.weight;
@@ -206,7 +235,7 @@ namespace Forwindz.CycleBlessings
             int roll = s_random.Next(totalWeight);
             for (int i = 0; i < pool.Count; i++)
             {
-                BlessingDef def = pool[i];
+                RewardDef def = pool[i];
                 if (!IsSelectable(def))
                 {
                     continue;
@@ -222,9 +251,16 @@ namespace Forwindz.CycleBlessings
             return null;
         }
 
-        private static bool IsSelectable(BlessingDef def)
+        private static bool IsSelectable(RewardDef def)
         {
-            return def != null && !string.IsNullOrEmpty(def.effect) && def.weight > 0;
+            if (def == null || def.weight <= 0)
+            {
+                return false;
+            }
+
+            return !string.IsNullOrEmpty(def.effect) ||
+                   (def.goods != null && def.goods.Count > 0) ||
+                   def.villagers > 0;
         }
     }
 }

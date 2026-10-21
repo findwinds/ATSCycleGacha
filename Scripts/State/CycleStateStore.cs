@@ -9,7 +9,7 @@ namespace Forwindz.CycleBlessings
     /// </summary>
     public static class CycleStateStore
     {
-        private const string SaveKey = "CycleBlessings_State_v3";
+        private const string SaveKey = "CycleBlessings_State_v4";
         private const string SettlementAppliedKey = "CycleBlessings_BuffsApplied_v1";
         private const string SettlementTicketKey = "CycleBlessings_TicketGranted_v1";
 
@@ -98,7 +98,7 @@ namespace Forwindz.CycleBlessings
             s_saveData.CurrentSettlement.SetValue(SettlementTicketKey, true);
             if (grant)
             {
-                State.tickets++;
+                State.tickets += ModConfig.Current.ticketsPerSettlement;
             }
 
             PersistImmediately();

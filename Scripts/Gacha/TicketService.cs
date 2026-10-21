@@ -36,7 +36,7 @@ namespace Forwindz.CycleBlessings
                     return;
                 }
 
-                Plugin.Log.LogInfo($"Settlement {(won ? "won" : "lost")}: +1 draw ticket (total {CycleStateStore.State.tickets}).");
+                Plugin.Log.LogInfo($"Settlement {(won ? "won" : "lost")}: +{ModConfig.Current.ticketsPerSettlement} draw ticket(s) (total {CycleStateStore.State.tickets}).");
             }
             catch (Exception e)
             {

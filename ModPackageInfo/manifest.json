@@ -1,8 +1,8 @@
 {
   "name": "CycleBlessings",
-  "version_number": "0.3.0",
+  "version_number": "0.4.0",
   "website_url": "https://github.com/findwinds/ATSCycleBlessings",
-  "description": "Earn a draw ticket for every won settlement, then spin a 15-option world-event buff wheel on the world map. 每赢一局获得抽奖券，在大地图抽取世界事件式全局 buff。",
+  "description": "Win a settlement for 10 draw tickets, then spin a 31-option world-map gacha for resources, population or global buffs. 每赢一局获得10张券，在大地图抽取物资/人口/全局增益。",
   "dependencies": [
     "BepInEx-BepInExPack-5.4.2100",
     "ATS_API_Devs-API-3.7.0"
