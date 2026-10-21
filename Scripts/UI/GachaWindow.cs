@@ -305,6 +305,8 @@ namespace Forwindz.CycleBlessings
             s_button = new GUIStyle(GUI.skin.button);
             s_button.font = font;
             s_button.fontSize = 14;
+            s_button.alignment = TextAnchor.MiddleCenter;
+            s_button.wordWrap = true;
         }
 
         private static Font LoadFont()
