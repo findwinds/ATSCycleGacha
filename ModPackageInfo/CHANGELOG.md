@@ -9,6 +9,7 @@
 - Charge values are now Common 1, Uncommon 2, Rare 3, Epic 4, Legendary 5.
 - A full 10-point charge now grants +1 draw ticket; overflow carries into the next charge cycle.
 - Cycle reset clears tickets, charge, wheel and drawn rewards (via ATS_API's CurrentCycle reset).
+- Renamed the project, assembly, plugin GUID and namespace from CycleBlessings to CycleGacha.
 
 # 0.4.0
 
