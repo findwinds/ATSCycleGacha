@@ -11,9 +11,47 @@ namespace Forwindz.CycleBlessings
     /// </summary>
     internal static class ReputationPatch
     {
-        public static void Postfix(float amount, ReputationChangeSource type, string reason)
+        public static void Postfix(object[] __args)
         {
-            if (amount <= 0f)
+            float amount = 0f;
+            string reason = null;
+            ReputationChangeSource type = default(ReputationChangeSource);
+            bool foundSource = false;
+
+            if (__args == null)
+            {
+                return;
+            }
+
+            // Read by type instead of by parameter name so a game update renaming the
+            // parameters does not silently break tracking.
+            for (int i = 0; i < __args.Length; i++)
+            {
+                object arg = __args[i];
+                if (arg is float)
+                {
+                    amount = (float)arg;
+                }
+                else if (arg is int)
+                {
+                    amount = (int)arg;
+                }
+                else if (arg is double)
+                {
+                    amount = (float)(double)arg;
+                }
+                else if (arg is ReputationChangeSource)
+                {
+                    type = (ReputationChangeSource)arg;
+                    foundSource = true;
+                }
+                else if (arg is string)
+                {
+                    reason = (string)arg;
+                }
+            }
+
+            if (!foundSource || amount <= 0f)
             {
                 return;
             }
