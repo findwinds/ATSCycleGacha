@@ -68,7 +68,7 @@
 - 草药园产量 +50%。
 - 酿酒厂产量 +50%。
 
-默认池全部使用游戏自带的 `EffectTypes` 效果；名字、图标、数值都走原版数据。可以在 `cycle_gacha.json` 里换成任意效果。
+默认池全部使用游戏自带的 `EffectTypes` 效果；名字、图标、数值都走原版数据。Legendary/Epic/Rare 以 world event 效果为主，Uncommon 用较小的全局生产/辅助效果补足 8 格。可以在 `cycle_gacha.json` 里换成任意效果。
 
 ---
 
