@@ -18,6 +18,7 @@ namespace Forwindz.CycleBlessings
         private static Rect s_windowRect = new Rect(240, 80, 940, 700);
         private static Vector2 s_ownedScroll;
         private static string s_lastResult = "";
+        private static bool s_errorLogged;
 
         private static GUIStyle s_label;
         private static GUIStyle s_title;
@@ -40,6 +41,23 @@ namespace Forwindz.CycleBlessings
         }
 
         public static void Draw()
+        {
+            try
+            {
+                DrawInternal();
+            }
+            catch (Exception e)
+            {
+                if (!s_errorLogged)
+                {
+                    s_errorLogged = true;
+                    Plugin.Log.LogError("Gacha window failed to draw");
+                    Plugin.Log.LogError(e);
+                }
+            }
+        }
+
+        private static void DrawInternal()
         {
             if (!IsWorldMap())
             {
