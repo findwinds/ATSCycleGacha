@@ -327,13 +327,18 @@ namespace Forwindz.CycleBlessings
             int totalWeight = 0;
             for (int i = 0; i < pool.Count; i++)
             {
-                totalWeight += Math.Max(1, pool[i].weight);
+                totalWeight += Math.Max(0, pool[i].weight);
+            }
+
+            if (totalWeight <= 0)
+            {
+                return null;
             }
 
             int roll = s_random.Next(totalWeight);
             for (int i = 0; i < pool.Count; i++)
             {
-                roll -= Math.Max(1, pool[i].weight);
+                roll -= Math.Max(0, pool[i].weight);
                 if (roll < 0)
                 {
                     return pool[i];

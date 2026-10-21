@@ -116,7 +116,7 @@
   ```
   - `good` 优先按 `ATS_API.Helpers.GoodsTypes` 的枚举名解析（如 `Mat_Raw_Wood`、`Tools_Simple_Tools`）；解析不到时再当作游戏内部物品名（如 `[Mat Raw] Wood`）。
   - `villagers` 大于 0 时发放居民；`race` 留空表示从当前定居点已有的种族里随机。
-  - `weight` 是抽取权重，默认 1。
+  - `weight` 是抽取权重，默认 1；设为 0 可以让该条目永不抽中（不用删除它）。
 
 改完配置需要重启游戏（或回到主菜单重新进入）生效。
 
@@ -141,6 +141,8 @@
 3. 如果日志出现 `Unclassified reputation source 'XXX'`，说明该来源名不在 `reputationSources` 里；把 `XXX` 加进对应的 token 列表即可。
 4. 如果森林事件的来源名不是 `Relic` / `Glade` / `Event` 之一，把日志里的实际名字补进 `reputationSources.glade`。
 5. 祝福在开局发放时，确认 `Serviceable.StorageService.Main.Goods` 已就绪；插件会等待最多 30 秒并在日志里报告结果。
+
+兼容性注意：如果同时使用了会**完全替换** `ReputationService.AddReputationPoints` 的作弊/倍率类 mod（即 prefix 返回 `false`、不执行原方法），本 mod 的 postfix 不会被执行，声望不会被统计。普通的数值修改、基石、事件类 mod 不受影响。
 
 当前版本只做“开局资源/人口”类祝福，没有接入游戏的 `EffectModel` 全局修饰符系统。像“全局士气 +1.5”“服务建筑效率 +20%”这类真正改变数值的祝福，建议作为下一版用 ATS_API 的 `HookedEffectBuilder` 单独实现，避免和原版基石/事件修饰符冲突。
 

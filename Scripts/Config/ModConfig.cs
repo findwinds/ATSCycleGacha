@@ -242,9 +242,9 @@ namespace Forwindz.CycleBlessings
                     def.villagers = 0;
                 }
 
-                if (def.weight < 1)
+                if (def.weight < 0)
                 {
-                    def.weight = 1;
+                    def.weight = 0;
                 }
             }
         }
