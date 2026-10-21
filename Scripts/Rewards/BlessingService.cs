@@ -94,11 +94,27 @@ namespace Forwindz.CycleBlessings
             return null;
         }
 
+        public static BlessingDef FindDef(string effectName)
+        {
+            BlessingDef result;
+            if (TryFindDef(ModConfig.Current.pools.legendary, effectName, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.epic, effectName, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.rare, effectName, out result)) return result;
+            if (TryFindDef(ModConfig.Current.pools.uncommon, effectName, out result)) return result;
+            return null;
+        }
+
         public static string GetDisplayName(string effectName)
         {
             if (string.IsNullOrEmpty(effectName))
             {
                 return "?";
+            }
+
+            BlessingDef def = FindDef(effectName);
+            if (def != null && !string.IsNullOrEmpty(def.name))
+            {
+                return def.name;
             }
 
             EffectModel effect = ResolveEffect(effectName);
@@ -116,6 +132,12 @@ namespace Forwindz.CycleBlessings
 
         public static string GetDescription(string effectName)
         {
+            BlessingDef def = FindDef(effectName);
+            if (def != null && !string.IsNullOrEmpty(def.description))
+            {
+                return def.description;
+            }
+
             EffectModel effect = ResolveEffect(effectName);
             if (effect != null && effect.Description != null)
             {
@@ -127,6 +149,24 @@ namespace Forwindz.CycleBlessings
             }
 
             return "";
+        }
+
+        private static bool TryFindDef(List<BlessingDef> pool, string effectName, out BlessingDef result)
+        {
+            if (pool != null)
+            {
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    if (pool[i] != null && pool[i].effect == effectName)
+                    {
+                        result = pool[i];
+                        return true;
+                    }
+                }
+            }
+
+            result = null;
+            return false;
         }
 
         public static string StripTags(string text)
