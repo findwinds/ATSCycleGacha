@@ -239,7 +239,7 @@ namespace Forwindz.CycleBlessings
             config.pools.rare.Add(Buff("rare_favored_species", "WE_Favor_Random_Race"));
 
             // Uncommon: smaller global bonuses, plus two minor world-event rewards.
-            config.pools.uncommon.Add(Buff("uncommon_elder_cat_npc", "WE_Spawn_Cat_NPC"));
+            config.pools.uncommon.Add(Buff("uncommon_farm_production", "Farm_Plus100"));
             config.pools.uncommon.Add(Buff("uncommon_fishing_speed", "Fishing_Huts_Speed"));
             config.pools.uncommon.Add(Buff("uncommon_hauler_speed", "Hauler_Speed"));
             config.pools.uncommon.Add(Buff("uncommon_metal_speed", "Metalurgic_Proficiency_33"));
