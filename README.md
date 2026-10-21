@@ -138,7 +138,7 @@
 
 - **监听声望**：Harmony postfix 挂在 `Eremite.Services.ReputationService.AddReputationPoints(float amount, ReputationChangeSource type, string reason)`。这是游戏所有声望来源的统一入口；通过 `ReputationChangeSource` 的名字（必要时再看 `reason`）归到三条线。
 - **循环持久化**：使用 ATS_API 的 `ModdedSaveManager`。计数和 buff 列表存在 `ModSaveData.CurrentCycle` 里；ATS_API 在 `WorldCalendarService.OnCycleEnded` 时会把 `CurrentCycle` 换成新的 `SaveData`，正好对应“循环结束清空”。
-- **应用 buff**：Harmony postfix 挂在 `Eremite.Services.EffectsService.AddLateInitialEffects` 上，这是游戏应用 world event / embark 效果的同一个阶段。对列表里的每个效果调用 `Serviceable.Settings.GetEffect(name).Apply()`。
+- **应用 buff**：Harmony postfix 挂在 `Eremite.Services.EffectsService.AddLateInitialEffects` 上，这是游戏应用 world event / embark 效果的同一个阶段。对列表里的每个效果调用 `SO.Settings.GetEffect(name).Apply()`。
 - **立即生效**：抽到 buff 时如果已经在局内，直接 `EffectModel.Apply()`。
 - **不修改游戏原声望/原效果**：只读声望和来源，不改写原方法；buff 通过游戏自己的 `EffectModel.Apply()` 生效。
 - **兼容 DLC**：奖池和来源都用名字匹配，不写死枚举数值；DLC 新增的指令/事件只要来源名能匹配 token 就会计入。
