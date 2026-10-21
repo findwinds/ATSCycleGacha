@@ -43,7 +43,7 @@ $(BepInExPath)\BepInEx\plugins\Forwindz-CycleBlessings\
 
 1. 游戏目录下已安装 BepInEx，且 `BepInEx/plugins/ATS_API_Devs-API/API.dll` 存在。
 2. `BepInEx/LogOutput.log` 中能看到：
-   - `Cycle Blessings v0.4.0 loaded`
+   - `Cycle Blessings v0.5.0 loaded`
    - `Patched Eremite.Services.ReputationService.CheckForWin`
    - `Patched Eremite.Services.ReputationService.ForceGameWin`
    - `Patched Eremite.Services.ReputationService.GameLost`

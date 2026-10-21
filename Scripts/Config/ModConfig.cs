@@ -51,8 +51,8 @@ namespace Forwindz.CycleBlessings
     [Serializable]
     public class ChargeValues
     {
-        public int legendary = 10;
-        public int epic = 5;
+        public int legendary = 5;
+        public int epic = 4;
         public int rare = 3;
         public int uncommon = 2;
         public int common = 1;
@@ -105,7 +105,7 @@ namespace Forwindz.CycleBlessings
                 {
                     string json = File.ReadAllText(ConfigPath);
                     Current = JsonConvert.DeserializeObject<ModConfig>(json);
-                    if (Current == null || Current.schemaVersion < 2)
+                    if (Current == null || Current.schemaVersion < 3)
                     {
                         if (Current != null)
                         {
@@ -257,9 +257,22 @@ namespace Forwindz.CycleBlessings
                 bool hasEffect = !string.IsNullOrEmpty(def.effect);
                 bool hasGoods = def.goods.Count > 0;
                 bool hasVillagers = def.villagers > 0;
-                if (!hasEffect && !hasGoods && !hasVillagers)
+                int kinds = (hasEffect ? 1 : 0) + (hasGoods ? 1 : 0) + (hasVillagers ? 1 : 0);
+                if (kinds == 0)
                 {
                     Plugin.Log.LogWarning($"Reward '{def.id}' has no effect, goods or villagers; it will be skipped.");
+                    continue;
+                }
+
+                if (kinds > 1)
+                {
+                    Plugin.Log.LogWarning($"Reward '{def.id}' combines multiple reward types (effect/goods/villagers); composite rewards are not allowed and will be skipped.");
+                    continue;
+                }
+
+                if (hasGoods && def.goods.Count > 1)
+                {
+                    Plugin.Log.LogWarning($"Reward '{def.id}' contains multiple goods; single-good rewards only, skipping it.");
                     continue;
                 }
 
@@ -277,75 +290,44 @@ namespace Forwindz.CycleBlessings
         public static ModConfig CreateDefault()
         {
             ModConfig config = new ModConfig();
-            config.schemaVersion = 2;
+            config.schemaVersion = 3;
 
-            // Legendary: strongest effects, huge supplies or a large settler group.
-            config.pools.legendary.Add(Buff("legendary_automatons", "WE_Automaton_In_All_Mines"));
-            config.pools.legendary.Add(Buff("legendary_elder_cat", "WE_First_Elder_Bonus"));
-            config.pools.legendary.Add(Goods("legendary_supplies", "传奇物资 / Legendary Supplies",
-                "每座新定居点开局 +250 木材、+150 根茎、+30 木板。",
-                G("Mat_Raw_Wood", 250), G("Food_Raw_Roots", 150), G("Mat_Processed_Planks", 30)));
-            config.pools.legendary.Add(Settlers("legendary_settlers", "传奇移民 / Legendary Settlers",
-                "每座新定居点开局 +8 名随机种族居民。", 8));
+            AddTier(config.pools.legendary, "legendary", 50, 20, 5, "Global_Production_Faster_25", 25);
+            AddTier(config.pools.epic, "epic", 40, 15, 4, "Global_Production_Faster_20", 20);
+            AddTier(config.pools.rare, "rare", 30, 10, 3, "Global_Production_Faster_15", 15);
+            AddTier(config.pools.uncommon, "uncommon", 20, 5, 2, "Global_Production_Faster_10", 10);
 
-            // Epic: strong economy/production effects, large supplies, +5 settlers.
-            config.pools.epic.Add(Buff("epic_petrified_egg", "WE_Petrified_Egg"));
-            config.pools.epic.Add(Buff("epic_guild_sigil", "WE_Crashed_Airship_Bonus"));
-            config.pools.epic.Add(Buff("epic_farm", "Farm_Plus150"));
-            config.pools.epic.Add(Goods("epic_supplies", "大型物资 / Large Supplies",
-                "每座新定居点开局 +150 木材、+100 肉、+20 木板。",
-                G("Mat_Raw_Wood", 150), G("Food_Raw_Meat", 100), G("Mat_Processed_Planks", 20)));
-            config.pools.epic.Add(Settlers("epic_settlers", "大型移民 / Large Settler Group",
-                "每座新定居点开局 +5 名随机种族居民。", 5));
-
-            // Rare: strong resolve / production effects, medium supplies, +3 settlers.
-            config.pools.rare.Add(Buff("rare_elder_cat_resolve", "WE_First_Elder_Cat_Resolve"));
-            config.pools.rare.Add(Buff("rare_festive_mood", "WE_Fallen_Viceroy_Commemoration_Composite"));
-            config.pools.rare.Add(Buff("rare_favored_species", "WE_Favor_Random_Race"));
-            config.pools.rare.Add(Buff("rare_woodcutters", "Woodcutters_Camp_Plus100"));
-            config.pools.rare.Add(Buff("rare_smallfarm", "SmallFarm_Plus150"));
-            config.pools.rare.Add(Goods("rare_supplies", "稀有物资 / Rare Supplies",
-                "每座新定居点开局 +80 木材、+60 根茎、+10 木板。",
-                G("Mat_Raw_Wood", 80), G("Food_Raw_Roots", 60), G("Mat_Processed_Planks", 10)));
-            config.pools.rare.Add(Settlers("rare_settlers", "稀有移民 / Rare Settler Group",
-                "每座新定居点开局 +3 名随机种族居民。", 3));
-
-            // Uncommon: medium global bonuses, processed goods or +2 settlers.
-            config.pools.uncommon.Add(Buff("uncommon_farm", "Farm_Plus100"));
-            config.pools.uncommon.Add(Buff("uncommon_metal", "Metalurgic_Proficiency_33"));
-            config.pools.uncommon.Add(Buff("uncommon_herb", "Herb_Garden_Plus50_Composite"));
-            config.pools.uncommon.Add(Buff("uncommon_brewery", "Brewery_Plus50_Composite"));
-            config.pools.uncommon.Add(Buff("uncommon_smallfarm", "SmallFarm_Plus100"));
-            config.pools.uncommon.Add(Goods("uncommon_supplies", "常用物资 / Supplies",
-                "每座新定居点开局 +40 木材、+30 根茎、+5 木板。",
-                G("Mat_Raw_Wood", 40), G("Food_Raw_Roots", 30), G("Mat_Processed_Planks", 5)));
-            config.pools.uncommon.Add(Goods("uncommon_processed", "加工物资 / Processed Supplies",
-                "每座新定居点开局 +8 木板、+6 砖块、+5 织物。",
-                G("Mat_Processed_Planks", 8), G("Mat_Processed_Bricks", 6), G("Mat_Processed_Fabric", 5)));
-            config.pools.uncommon.Add(Settlers("uncommon_settlers", "新居民 / Settlers",
-                "每座新定居点开局 +2 名随机种族居民。", 2));
-
-            // Common: small amounts of resources, +1 settler or a small global bonus.
-            config.pools.common.Add(Goods("common_wood", "木材补给 / Wood Cache", "每座新定居点开局 +20 木材。", G("Mat_Raw_Wood", 20)));
-            config.pools.common.Add(Goods("common_stone", "石材补给 / Stone Cache", "每座新定居点开局 +15 石材。", G("Mat_Raw_Stone", 15)));
-            config.pools.common.Add(Goods("common_clay", "黏土补给 / Clay Cache", "每座新定居点开局 +15 黏土。", G("Mat_Raw_Clay", 15)));
-            config.pools.common.Add(Goods("common_roots", "根茎补给 / Roots Cache", "每座新定居点开局 +15 根茎。", G("Food_Raw_Roots", 15)));
-            config.pools.common.Add(Goods("common_meat", "肉食补给 / Meat Cache", "每座新定居点开局 +10 肉。", G("Food_Raw_Meat", 10)));
-            config.pools.common.Add(Goods("common_vegetables", "蔬菜补给 / Vegetable Cache", "每座新定居点开局 +10 蔬菜。", G("Food_Raw_Vegetables", 10)));
-            config.pools.common.Add(Goods("common_planks", "木板补给 / Plank Cache", "每座新定居点开局 +5 木板。", G("Mat_Processed_Planks", 5)));
-            config.pools.common.Add(Goods("common_bricks", "砖块补给 / Brick Cache", "每座新定居点开局 +4 砖块。", G("Mat_Processed_Bricks", 4)));
-            config.pools.common.Add(Goods("common_fabric", "织物补给 / Fabric Cache", "每座新定居点开局 +3 织物。", G("Mat_Processed_Fabric", 3)));
-            config.pools.common.Add(Settlers("common_settlers", "新居民 / New Settler", "每座新定居点开局 +1 名随机种族居民。", 1));
-            config.pools.common.Add(Buff("common_fishing", "Fishing_Huts_Speed"));
-            config.pools.common.Add(Buff("common_hauler", "Hauler_Speed"));
-            config.pools.common.Add(Buff("common_farm", "Farm_Plus50"));
-            config.pools.common.Add(Buff("common_woodcutters", "Woodcutters_Camp_Plus50"));
-            config.pools.common.Add(Buff("common_foragers", "Foragers_Camp_Plus50_Composite"));
-            config.pools.common.Add(Buff("common_smallfarm", "SmallFarm_Plus50"));
-            config.pools.common.Add(Buff("common_houses", "Houses_Plus1_For_Break_Time"));
-            config.pools.common.Add(Buff("common_resolve", "Hub_Resolve_Composite"));
+            // Common: exactly 16 single-type rewards.
+            config.pools.common.Add(Percent("common_percent", "Global_Production_Faster_5", 5));
+            config.pools.common.Add(Resource("common_food_roots", "Food_Raw_Roots", 10));
+            config.pools.common.Add(Resource("common_food_meat", "Food_Raw_Meat", 10));
+            config.pools.common.Add(Resource("common_food_vegetables", "Food_Raw_Vegetables", 10));
+            config.pools.common.Add(Resource("common_mat_wood", "Mat_Raw_Wood", 1));
+            config.pools.common.Add(Resource("common_mat_stone", "Mat_Raw_Stone", 1));
+            config.pools.common.Add(Resource("common_mat_clay", "Mat_Raw_Clay", 1));
+            config.pools.common.Add(Settlers("common_settlers", 1));
+            config.pools.common.Add(Resource("common_processed_planks", "Mat_Processed_Planks", 1));
+            config.pools.common.Add(Resource("common_processed_bricks", "Mat_Processed_Bricks", 1));
+            config.pools.common.Add(Resource("common_processed_fabric", "Mat_Processed_Fabric", 1));
+            config.pools.common.Add(Resource("common_service_tea", "Needs_Tea", 1));
+            config.pools.common.Add(Resource("common_service_wine", "Needs_Wine", 1));
+            config.pools.common.Add(Resource("common_service_incense", "Needs_Incense", 1));
+            config.pools.common.Add(Resource("common_metal_copper", "Metal_Copper_Bar", 1));
+            config.pools.common.Add(Resource("common_tools", "Tools_Simple_Tools", 1));
 
             return config;
+        }
+
+        private static void AddTier(List<RewardDef> pool, string prefix, int food, int material, int settlers, string percentEffect, int percent)
+        {
+            pool.Add(Percent(prefix + "_percent", percentEffect, percent));
+            pool.Add(Resource(prefix + "_food_roots", "Food_Raw_Roots", food));
+            pool.Add(Resource(prefix + "_food_meat", "Food_Raw_Meat", food));
+            pool.Add(Resource(prefix + "_food_vegetables", "Food_Raw_Vegetables", food));
+            pool.Add(Resource(prefix + "_mat_wood", "Mat_Raw_Wood", material));
+            pool.Add(Resource(prefix + "_mat_stone", "Mat_Raw_Stone", material));
+            pool.Add(Resource(prefix + "_mat_clay", "Mat_Raw_Clay", material));
+            pool.Add(Settlers(prefix + "_settlers", settlers));
         }
 
         private static GoodAmount G(string good, int amount)
@@ -361,22 +343,28 @@ namespace Forwindz.CycleBlessings
             return def;
         }
 
-        private static RewardDef Goods(string id, string name, string description, params GoodAmount[] goods)
+        private static RewardDef Percent(string id, string effect, int percent)
         {
             RewardDef def = new RewardDef();
             def.id = id;
-            def.name = name;
-            def.description = description;
-            def.goods.AddRange(goods);
+            def.effect = effect;
+            def.name = $"全局生产速度 +{percent}% / Production +{percent}%";
+            def.description = $"全局生产速度 +{percent}%。";
             return def;
         }
 
-        private static RewardDef Settlers(string id, string name, string description, int count)
+        private static RewardDef Resource(string id, string good, int amount)
         {
             RewardDef def = new RewardDef();
             def.id = id;
-            def.name = name;
-            def.description = description;
+            def.goods.Add(G(good, amount));
+            return def;
+        }
+
+        private static RewardDef Settlers(string id, int count)
+        {
+            RewardDef def = new RewardDef();
+            def.id = id;
             def.villagers = count;
             return def;
         }

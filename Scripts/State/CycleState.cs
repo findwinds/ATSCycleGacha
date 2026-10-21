@@ -25,9 +25,8 @@ namespace Forwindz.CycleBlessings
         public int drawsSinceWheelGenerated;
         public int totalDraws;
 
-        /// <summary>0-9. Reaching 10 grants one free draw.</summary>
+        /// <summary>0-9. Reaching 10 grants +1 ticket and carries the overflow.</summary>
         public int drawCharge;
-        public int freeDraws;
 
         public void Sanitize()
         {
@@ -56,12 +55,11 @@ namespace Forwindz.CycleBlessings
             if (drawsSinceWheelGenerated < 0) drawsSinceWheelGenerated = 0;
             if (totalDraws < 0) totalDraws = 0;
             if (drawCharge < 0) drawCharge = 0;
-            if (freeDraws < 0) freeDraws = 0;
 
             while (drawCharge >= 10)
             {
                 drawCharge -= 10;
-                freeDraws++;
+                tickets++;
             }
         }
 
@@ -73,7 +71,7 @@ namespace Forwindz.CycleBlessings
             builder.Append(" Rewards=").Append(rewardIds.Count);
             builder.Append(" Draws=").Append(totalDraws);
             builder.Append(" Charge=").Append(drawCharge);
-            builder.Append(" Free=").Append(freeDraws);
+
             return builder.ToString();
         }
     }

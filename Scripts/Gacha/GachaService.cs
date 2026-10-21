@@ -28,7 +28,7 @@ namespace Forwindz.CycleBlessings
         public static bool CanDraw()
         {
             CycleState state = CycleStateStore.State;
-            return state.wheel.Count > 0 && (state.tickets > 0 || state.freeDraws > 0);
+            return state.wheel.Count > 0 && state.tickets > 0;
         }
 
         public static WheelOption Draw()
@@ -41,24 +41,15 @@ namespace Forwindz.CycleBlessings
                 }
 
                 CycleState state = CycleStateStore.State;
-                if (state.wheel.Count == 0 || (state.tickets <= 0 && state.freeDraws <= 0))
+                if (state.wheel.Count == 0 || state.tickets <= 0)
                 {
                     return null;
                 }
 
-                bool freeDraw = state.freeDraws > 0;
                 int index = s_random.Next(state.wheel.Count);
                 WheelOption option = state.wheel[index];
                 state.wheel.RemoveAt(index);
-
-                if (freeDraw)
-                {
-                    state.freeDraws--;
-                }
-                else
-                {
-                    state.tickets--;
-                }
+                state.tickets--;
 
                 state.drawsSinceWheelGenerated++;
                 state.totalDraws++;
@@ -69,13 +60,13 @@ namespace Forwindz.CycleBlessings
                 while (state.drawCharge >= MaxCharge)
                 {
                     state.drawCharge -= MaxCharge;
-                    state.freeDraws++;
+                    state.tickets++;
                 }
 
                 CycleStateStore.PersistImmediately();
                 Plugin.Log.LogInfo(
                     $"Gacha draw #{state.totalDraws}: {option.rarity} {option.rewardId} " +
-                    $"(charge +{gainedCharge}, {state.drawCharge}/{MaxCharge}, free={state.freeDraws}).");
+                    $"(charge +{gainedCharge}, {state.drawCharge}/{MaxCharge}, tickets={state.tickets}).");
                 return option;
             }
             catch (Exception e)

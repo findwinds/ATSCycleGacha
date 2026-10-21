@@ -83,16 +83,14 @@ namespace Forwindz.CycleBlessings
         private static void DrawTicketBadge()
         {
             CycleState state = CycleStateStore.State;
-            if (state.tickets <= 0 && state.freeDraws <= 0 && !s_show)
+            if (state.tickets <= 0 && !s_show)
             {
                 return;
             }
 
             Rect rect = new Rect(24, 24, 290, 62);
-            string secondLine = state.freeDraws > 0
-                ? "免费 / Free: " + state.freeDraws + "    " + ModConfig.Current.gachaHotkey + " 打开"
-                : "按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
-            string label = "抽奖券 / Tickets: " + state.tickets + "\n" + secondLine;
+            string label = "抽奖券 / Tickets: " + state.tickets +
+                           "\n按 " + ModConfig.Current.gachaHotkey + " 或点击打开 / Open";
             if (GUI.Button(rect, label, s_button))
             {
                 s_show = true;
@@ -146,7 +144,7 @@ namespace Forwindz.CycleBlessings
             GUILayout.EndScrollView();
 
             GUILayout.Space(6);
-            GUILayout.Label($"抽奖进度 / Draw charge: {state.drawCharge}/{GachaService.MaxCharge}   免费抽 / Free draws: {state.freeDraws}", s_label);
+            GUILayout.Label($"抽奖进度 / Draw charge: {state.drawCharge}/{GachaService.MaxCharge}   满 10 点 +1 券", s_label);
             Rect chargeBar = GUILayoutUtility.GetRect(520f, 16f);
             GUI.Box(chargeBar, GUIContent.none);
             Rect chargeFill = new Rect(
@@ -159,10 +157,7 @@ namespace Forwindz.CycleBlessings
             GUILayout.Space(6);
             GUILayout.BeginHorizontal();
             GUI.enabled = GachaService.CanDraw();
-            string drawLabel = state.freeDraws > 0
-                ? $"免费抽取 / Free Draw ({state.freeDraws})"
-                : "抽取 / Draw";
-            if (GUILayout.Button(drawLabel, s_button, GUILayout.Height(38)))
+            if (GUILayout.Button("抽取 / Draw", s_button, GUILayout.Height(38)))
             {
                 WheelOption option = GachaService.Draw();
                 s_lastResult = option == null
