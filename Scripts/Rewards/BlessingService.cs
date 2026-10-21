@@ -231,13 +231,13 @@ namespace Forwindz.CycleBlessings
 
         private static void ApplyVillagers(BlessingDef def, bool immediate)
         {
-            if (SO.VillagersService == null)
+            if (Serviceable.VillagersService == null)
             {
                 Plugin.Log.LogWarning($"Villagers service is not ready; blessing '{def.id}' could not add villagers.");
                 return;
             }
 
-            var races = SO.VillagersService.Races;
+            var races = Serviceable.VillagersService.Races;
             if (races == null || races.Count == 0)
             {
                 Plugin.Log.LogWarning($"No races are available; blessing '{def.id}' could not add villagers.");
@@ -307,7 +307,7 @@ namespace Forwindz.CycleBlessings
 
             if (needVillagers)
             {
-                if (SO.VillagersService == null || SO.VillagersService.Races == null || SO.VillagersService.Races.Count == 0)
+                if (Serviceable.VillagersService == null || Serviceable.VillagersService.Races == null || Serviceable.VillagersService.Races.Count == 0)
                 {
                     return false;
                 }
