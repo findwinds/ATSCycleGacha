@@ -177,6 +177,11 @@ namespace Forwindz.CycleBlessings
                 threshold = 1f;
             }
 
+            if (!grantImmediatelyOnEarn && !applyBlessingsAtSettlementStart)
+            {
+                Plugin.Log.LogWarning("Both grantImmediatelyOnEarn and applyBlessingsAtSettlementStart are false; blessings will be recorded but never delivered.");
+            }
+
             if (reputationSources == null)
             {
                 reputationSources = new SourceTokens();
