@@ -239,22 +239,36 @@ namespace Forwindz.CycleBlessings
                 type != EffectTypes.None)
             {
                 string internalName = type.ToName();
-                if (SO.Settings.ContainsEffect(internalName))
+                EffectModel effect = TryGetEffect(internalName);
+                if (effect != null)
                 {
-                    return SO.Settings.GetEffect(internalName);
+                    return effect;
                 }
 
                 LogMissingEffect(key + " (" + internalName + ")");
                 return null;
             }
 
-            if (SO.Settings.ContainsEffect(key))
+            EffectModel rawEffect = TryGetEffect(key);
+            if (rawEffect != null)
             {
-                return SO.Settings.GetEffect(key);
+                return rawEffect;
             }
 
             LogMissingEffect(key);
             return null;
+        }
+
+        private static EffectModel TryGetEffect(string internalName)
+        {
+            try
+            {
+                return SO.Settings.GetEffect(internalName);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static bool TryApplyNow(BlessingDef def)
