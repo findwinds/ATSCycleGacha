@@ -134,7 +134,7 @@
 
 ## 6. 已知限制 / 需要实机确认的点
 
-这个仓库是在**没有安装游戏本体**的环境里写的，代码按 ATS_API 现有接口和社区 mod 的用法对齐，但仍建议第一次实机测试时检查：
+这个仓库是在**没有安装游戏本体**的环境里写的，代码按 ATS_API 3.7.0（其枚举由游戏 1.9.3R 生成）和社区 mod 的实际用法对齐，但仍建议第一次实机测试时检查：
 
 1. 日志里 `Patched Eremite.Services.ReputationService.AddReputationPoints` 是否出现。
 2. 完成一个指令后，日志是否出现 `Earned 1 Orders blessing(s)`。
