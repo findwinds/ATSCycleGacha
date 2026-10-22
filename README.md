@@ -116,34 +116,23 @@
 
 ## 4. 配置说明
 
-`cycle_gacha.json` 位于 `CycleGacha.dll` 同目录，现在只保留运行选项：
+`cycle_gacha.json` 位于 `CycleGacha.dll` 同目录。
 
 ```json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "gachaHotkey": "F7",
   "grantTicketOnLoss": false,
-  "ticketsPerSettlement": 10,
-  "showWorldMapPerkIcons": true
+  "ticketsPerSettlement": 10
 }
 ```
 
 字段：
 
-- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建默认配置（0.14.0 移除了奖励池配置）。
+- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建。
 - `gachaHotkey`：大地图打开抽奖窗口的热键，填 `UnityEngine.KeyCode` 的名字，如 `F7`。
 - `grantTicketOnLoss`：失败是否也给券，默认 `false`。
 - `ticketsPerSettlement`：每次胜利给多少张券，默认 `10`。
-- `showWorldMapPerkIcons`：是否把抽到的奖励显示在大地图左下角的循环加成条里，默认 `true`。
-
-**以下内容已固定在代码里，不再从配置读取：**
-
-- 转盘数量：1 Legendary / 2 Epic / 4 Rare / 8 Uncommon / 16 Common（31 格，6×6 UI 专用）。
-- 进度充能：Legendary 5 / Epic 4 / Rare 3 / Uncommon 2 / Common 1（满 10 点 +1 券）。
-- 奖励池：每个稀有度固定提供 2 个百分比加成 + 19 种单一物资；数值表在 `ModConfig.BuildPools()` 里。
-- 每个奖励的单一类型规则（一个效果、一种物资或一组人口）也在代码里保证。
-
-因此不再需要 `wheel`、`charge`、`pools` 这些配置项；旧配置文件会被自动替换。
 
 ---
 

@@ -1,3 +1,9 @@
+# 0.14.2
+
+- `showWorldMapPerkIcons` is now hardcoded to `true` and removed from `cycle_gacha.json`; the world map cycle-perk strip is always populated.
+- The config now only contains `schemaVersion`, `gachaHotkey`, `grantTicketOnLoss` and `ticketsPerSettlement`.
+- Existing configs are backed up as `.old` and regenerated with schema 6.
+
 # 0.14.1
 
 - Reward card names are now tinted with the rarity colour (legendary orange, epic purple, rare blue, uncommon green, common grey-white) instead of plain white. Drawn cards keep their dimmed grey text.

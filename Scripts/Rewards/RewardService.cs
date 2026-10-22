@@ -192,11 +192,6 @@ namespace Forwindz.CycleGacha
         /// </summary>
         private static void EnsurePerkModels(CycleState state)
         {
-            if (!ModConfig.Current.showWorldMapPerkIcons)
-            {
-                return;
-            }
-
             EnsurePerkModelFor(state.registeredRewardIds);
             EnsurePerkModelFor(state.rewardIds);
         }
@@ -376,7 +371,7 @@ namespace Forwindz.CycleGacha
                         SO.CycleEffectsService.AddEmbarkEffect(effectName);
                         Plugin.Log.LogInfo(
                             $"Reward '{def.id}': registered cycle buff '{effectName}' " +
-                            "(no cycle-perk icon; see showWorldMapPerkIcons in cycle_gacha.json).");
+                            "(no cycle-perk icon).");
                     }
 
                     any = true;
@@ -459,11 +454,6 @@ namespace Forwindz.CycleGacha
         private static CycleEffectModel GetOrCreatePerkModel(string effectName, EffectModel effect, RewardDef def)
         {
             if (effect == null)
-            {
-                return null;
-            }
-
-            if (!ModConfig.Current.showWorldMapPerkIcons)
             {
                 return null;
             }
@@ -1449,7 +1439,7 @@ namespace Forwindz.CycleGacha
         /// </summary>
         private static CycleEffectModel GetOrCreateGoodPerk(RewardDef def, GoodModel good, string goodName, int amount)
         {
-            if (def == null || good == null || !ModConfig.Current.showWorldMapPerkIcons)
+            if (def == null || good == null)
             {
                 return null;
             }
