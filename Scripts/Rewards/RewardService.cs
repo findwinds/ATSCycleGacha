@@ -8,6 +8,7 @@ using Eremite.Model.Effects;
 using Eremite.Model.Meta;
 using Eremite.Services;
 using Eremite.Services.World;
+using Eremite.WorldMap;
 using UnityEngine;
 
 namespace Forwindz.CycleGacha
@@ -57,6 +58,132 @@ namespace Forwindz.CycleGacha
             CycleStateStore.PersistImmediately();
         }
 
+        private const string PerkNamePrefix = "CycleGacha_";
+
+        /// <summary>
+        /// The world map perk strip stores only names, so after a reward-table change it can hold
+        /// entries whose effect no longer exists; Settings.GetCycleEffect would then throw and the
+        /// world map would never finish loading. Drop those, and re-create the models for the rest.
+        /// </summary>
+        private static void ReconcilePerkStates()
+        {
+            try
+            {
+                List<CyclePerkState> states = SO.CyclePerksService != null ? SO.CyclePerksService.Perks : null;
+                if (states == null)
+                {
+                    return;
+                }
+
+                List<string> bonusEmbarkEffects = null;
+                try
+                {
+                    bonusEmbarkEffects = Serviceable.WorldStateService != null &&
+                                         Serviceable.WorldStateService.CycleEffects != null
+                        ? Serviceable.WorldStateService.CycleEffects.bonusEmbarkEffects
+                        : null;
+                }
+                catch
+                {
+                }
+
+                for (int i = states.Count - 1; i >= 0; i--)
+                {
+                    CyclePerkState state = states[i];
+                    if (state == null || string.IsNullOrEmpty(state.model) ||
+                        !state.model.StartsWith(PerkNamePrefix, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (state.model.StartsWith(GoodPerkPrefix, StringComparison.Ordinal))
+                    {
+                        RewardDef goodDef = FindDef(state.model.Substring(GoodPerkPrefix.Length));
+                        if (goodDef != null && goodDef.goods != null && goodDef.goods.Count > 0 && goodDef.goods[0] != null)
+                        {
+                            GoodAmount ga = goodDef.goods[0];
+                            string gn = ResolveGoodName(ga.good);
+                            GetOrCreateGoodPerk(goodDef, string.IsNullOrEmpty(gn) ? null : gn.ToGoodModel(), gn, ga.amount);
+                            continue;
+                        }
+
+                        states.RemoveAt(i);
+                        Plugin.Log.LogInfo("Removed stale goods cycle perk '" + state.model + "'.");
+                        continue;
+                    }
+
+                    string effectName = state.model.Substring(PerkNamePrefix.Length);
+                    EffectModel effect = EnsureEffectByName(effectName);
+                    if (effect != null)
+                    {
+                        GetOrCreatePerkModel(effectName, effect, null);
+                        continue;
+                    }
+
+                    states.RemoveAt(i);
+                    if (bonusEmbarkEffects != null)
+                    {
+                        for (int j = bonusEmbarkEffects.Count - 1; j >= 0; j--)
+                        {
+                            if (bonusEmbarkEffects[j] == effectName)
+                            {
+                                bonusEmbarkEffects.RemoveAt(j);
+                                break;
+                            }
+                        }
+                    }
+
+                    Plugin.Log.LogInfo("Removed stale cycle perk '" + state.model + "' (its effect no longer exists).");
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("Could not reconcile the cycle perks: " + e.Message);
+            }
+        }
+
+        /// <summary>
+        /// Resolves an effect by name, re-creating the mod's synthetic percentage effects when the
+        /// name is one of them (CycleGacha_production_speed_6, CycleGacha_double_yield_3, ...).
+        /// </summary>
+        private static EffectModel EnsureEffectByName(string effectName)
+        {
+            if (string.IsNullOrEmpty(effectName))
+            {
+                return null;
+            }
+
+            EffectModel existing = TryGetEffect(effectName);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const string speedTag = PerkNamePrefix + SpeedKind + "_";
+            const string doubleTag = PerkNamePrefix + DoubleKind + "_";
+
+            string kind = null;
+            string digits = null;
+            if (effectName.StartsWith(speedTag, StringComparison.Ordinal))
+            {
+                kind = SpeedKind;
+                digits = effectName.Substring(speedTag.Length);
+            }
+            else if (effectName.StartsWith(doubleTag, StringComparison.Ordinal))
+            {
+                kind = DoubleKind;
+                digits = effectName.Substring(doubleTag.Length);
+            }
+
+            if (kind == null || string.IsNullOrEmpty(digits))
+            {
+                return null;
+            }
+
+            string created = ResolveSyntheticEffect(SyntheticPrefix + kind + ":" + digits);
+            return string.IsNullOrEmpty(created) ? null : TryGetEffect(created);
+        }
+
         /// <summary>
         /// Re-creates the runtime cycle perk models for every buff reward this cycle owns, both the
         /// already registered ones and the ones about to be registered. Cheap and idempotent: the
@@ -84,8 +211,20 @@ namespace Forwindz.CycleGacha
             for (int i = 0; i < rewardIds.Count; i++)
             {
                 RewardDef def = FindDef(rewardIds[i]);
-                if (def == null || string.IsNullOrEmpty(def.effect))
+                if (def == null)
                 {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(def.effect))
+                {
+                    if (def.goods != null && def.goods.Count > 0 && def.goods[0] != null)
+                    {
+                        GoodAmount ga = def.goods[0];
+                        string gn2 = ResolveGoodName(ga.good);
+                        GetOrCreateGoodPerk(def, string.IsNullOrEmpty(gn2) ? null : gn2.ToGoodModel(), gn2, ga.amount);
+                    }
+
                     continue;
                 }
 
@@ -129,6 +268,12 @@ namespace Forwindz.CycleGacha
 
             int registered = 0;
             LogCycleEffectInventory();
+
+            // Bring the game's cycle perk list in line with the current reward table first: drop
+            // perks whose effect no longer exists (e.g. after the pools were redesigned) and
+            // re-create the runtime models for the ones that are still valid, before the strip
+            // resolves their names.
+            ReconcilePerkStates();
 
             // The world map perk strip stores perk *names* and resolves them through
             // Settings.GetCycleEffect() every session, but the perk models for buff rewards are
@@ -255,10 +400,12 @@ namespace Forwindz.CycleGacha
                         }
 
                         GoodModel model = goodName.ToGoodModel();
-                        CycleEffectModel perk = FindGoodPerk(model, good.amount);
+                        CycleEffectModel perk = GetOrCreateGoodPerk(def, model, goodName, good.amount);
 
                         if (perk != null)
                         {
+                            // Registers the perk icon on the world map and, through OnApply, the
+                            // goods for the next caravan.
                             perk.Apply();
                             Plugin.Log.LogInfo(
                                 $"Reward '{def.id}': granted cycle perk '{perk.Name}' for {good.amount}x '{goodName}'.");
@@ -1045,6 +1192,11 @@ namespace Forwindz.CycleGacha
                 return null;
             }
 
+            if (key.StartsWith(SyntheticPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return ResolveSyntheticEffect(key);
+            }
+
             EffectTypes type;
             if (Enum.TryParse(key, true, out type) &&
                 type != EffectTypes.Unknown &&
@@ -1087,6 +1239,315 @@ namespace Forwindz.CycleGacha
 
             LogMissingEffect(key);
             return null;
+        }
+
+        // ---------------------------------------------------------------- synthetic effects
+
+        private const string SyntheticPrefix = "cycle:";
+        private const string SpeedKind = "production_speed";
+        private const string DoubleKind = "double_yield";
+
+        private static readonly Dictionary<string, string> s_syntheticEffects = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Builds an effect for a percentage the game does not ship as an asset.
+        ///
+        /// The reward table uses values like +1%, +3%, +6% production speed or +1..+5% double-yield
+        /// chance, while the shipped assets only cover 5/8/10/15/20/25/30/... and 10/15/20/25/30. For
+        /// those the mod clones a shipped model of the same type, sets its amount and registers it in
+        /// Settings' effect lookup under a stable name, exactly like the runtime cycle perks.
+        /// </summary>
+        private static string ResolveSyntheticEffect(string key)
+        {
+            try
+            {
+                string[] parts = key.Split(':');
+                if (parts.Length != 3)
+                {
+                    LogMissingEffect(key);
+                    return null;
+                }
+
+                string kind = parts[1].Trim().ToLowerInvariant();
+                int percent;
+                if (!int.TryParse(parts[2].Trim(), out percent) || percent <= 0 || percent > 200)
+                {
+                    LogMissingEffect(key);
+                    return null;
+                }
+
+                string modelName = "CycleGacha_" + kind + "_" + percent;
+
+                string cached;
+                if (s_syntheticEffects.TryGetValue(modelName, out cached) && TryGetEffect(cached) != null)
+                {
+                    return cached;
+                }
+
+                if (TryGetEffect(modelName) != null)
+                {
+                    s_syntheticEffects[modelName] = modelName;
+                    return modelName;
+                }
+
+                EffectModel template = FindSyntheticTemplate(kind);
+                if (template == null)
+                {
+                    Plugin.Log.LogWarning("No template effect for '" + kind + "' in this game build.");
+                    return null;
+                }
+
+                EffectModel copy = UnityEngine.Object.Instantiate(template);
+                copy.name = modelName;
+                copy.cachedName = null;
+
+                float value = percent / 100f;
+                GlobalProductionRateEffectModel rate = copy as GlobalProductionRateEffectModel;
+                if (rate != null)
+                {
+                    rate.amount = value;
+                }
+                else
+                {
+                    BaseRateAmountEffectModel chance = copy as BaseRateAmountEffectModel;
+                    if (chance == null)
+                    {
+                        Plugin.Log.LogWarning("Template '" + template.Name + "' has no amount field to set.");
+                        return null;
+                    }
+
+                    chance.amount = value;
+                }
+
+                if (!RegisterEffectModel(modelName, copy))
+                {
+                    Plugin.Log.LogWarning("Could not register the synthetic effect '" + modelName + "'.");
+                    return null;
+                }
+
+                s_syntheticEffects[modelName] = modelName;
+                Plugin.Log.LogInfo(
+                    "Created synthetic effect '" + modelName + "' (" + percent + "%) from '" + template.Name +
+                    "', amount text: " + copy.GetAmountText() + ".");
+                return modelName;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError("Failed to create the synthetic effect '" + key + "'");
+                Plugin.Log.LogError(e);
+                return null;
+            }
+        }
+
+        private static EffectModel FindSyntheticTemplate(string kind)
+        {
+            Settings settings = SO.Settings;
+            if (settings == null || settings.effects == null)
+            {
+                return null;
+            }
+
+            EffectModel first = null;
+            for (int i = 0; i < settings.effects.Length; i++)
+            {
+                EffectModel effect = settings.effects[i];
+                if (effect == null)
+                {
+                    continue;
+                }
+
+                if (kind == SpeedKind && effect is GlobalProductionRateEffectModel)
+                {
+                    // Prefer the canonical cycle-effect asset when it exists.
+                    if (effect.Name == "Global Production Faster 10")
+                    {
+                        return effect;
+                    }
+
+                    if (first == null)
+                    {
+                        first = effect;
+                    }
+                }
+                else if (kind == DoubleKind && effect is GlobalExtraProductionChanceEffectModel)
+                {
+                    if (effect.Name == "Global Extra Prod +10")
+                    {
+                        return effect;
+                    }
+
+                    if (first == null)
+                    {
+                        first = effect;
+                    }
+                }
+            }
+
+            return first;
+        }
+
+        /// <summary>
+        /// Puts an effect into the settings lookup only, never into Settings.effects, so the game's
+        /// own content generation does not pick the mod's effects up.
+        /// </summary>
+        private static bool RegisterEffectModel(string name, EffectModel model)
+        {
+            Settings settings = SO.Settings;
+            if (settings == null)
+            {
+                return false;
+            }
+
+            ModelCache<EffectModel> cache = settings.effectsCache;
+            if (cache == null)
+            {
+                return false;
+            }
+
+            EffectModel[] shipped = settings.effects;
+            if (shipped != null && shipped.Length > 0 && shipped[0] != null)
+            {
+                try
+                {
+                    settings.GetEffect(shipped[0].Name);
+                }
+                catch
+                {
+                    // The cache builds itself on that call; ignore a miss.
+                }
+            }
+
+            if (cache.cache == null)
+            {
+                cache.cache = new Dictionary<string, EffectModel>();
+            }
+
+            if (shipped != null)
+            {
+                for (int i = 0; i < shipped.Length; i++)
+                {
+                    if (shipped[i] != null && !cache.cache.ContainsKey(shipped[i].Name))
+                    {
+                        cache.cache[shipped[i].Name] = shipped[i];
+                    }
+                }
+            }
+
+            cache.cache[name] = model;
+            return true;
+        }
+
+        private const string GoodPerkPrefix = "CycleGacha_good_";
+
+        private static readonly Dictionary<string, CycleEffectModel> s_goodPerkModels =
+            new Dictionary<string, CycleEffectModel>();
+
+        /// <summary>
+        /// Builds the cycle perk that shows a goods reward on the world map. The game only ships
+        /// embark-good perks for its own bundles, so every gacha goods reward gets its own model,
+        /// named after the reward id so it can be re-created from a save.
+        /// </summary>
+        private static CycleEffectModel GetOrCreateGoodPerk(RewardDef def, GoodModel good, string goodName, int amount)
+        {
+            if (def == null || good == null || !ModConfig.Current.showWorldMapPerkIcons)
+            {
+                return null;
+            }
+
+            string modelName = GoodPerkPrefix + def.id;
+            CycleEffectModel cached;
+            if (s_goodPerkModels.TryGetValue(modelName, out cached) && cached != null)
+            {
+                return cached;
+            }
+
+            if (TryGetCycleEffect(modelName) != null)
+            {
+                CycleEffectModel existing = TryGetCycleEffect(modelName);
+                s_goodPerkModels[modelName] = existing;
+                return existing;
+            }
+
+            try
+            {
+                EmbarkGoodCycleEffectModel model = ScriptableObject.CreateInstance<EmbarkGoodCycleEffectModel>();
+                model.name = modelName;
+                model.good = new GoodRef { good = good, amount = amount };
+                model.label = GachaLabel;
+
+                // DisplayName formats displayName.key with the good name, so keep it to "+N {0}".
+                model.displayName = new OverriddenLocaText { key = "+" + amount + " {0}" };
+                model.description = new OverriddenLocaText { key = "下次出发时携带 +" + amount + " 个{0}。" };
+
+                if (!RegisterPerkModel(modelName, model))
+                {
+                    Plugin.Log.LogWarning("Could not register the cycle perk for reward '" + def.id + "'.");
+                    return null;
+                }
+
+                s_goodPerkModels[modelName] = model;
+                Plugin.Log.LogInfo("Created a cycle perk model for goods reward '" + def.id + "' ('" + modelName + "').");
+                return model;
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogError("Failed to create the goods cycle perk for '" + def.id + "'");
+                Plugin.Log.LogError(e);
+                return null;
+            }
+        }
+
+        /// <summary>Rarity colour of a reward, looked up by which pool the definition lives in.</summary>
+        public static Color FrameColorFor(RewardDef def)
+        {
+            return RarityPalette.Get(FindRarity(def));
+        }
+
+        /// <summary>The pool a reward definition belongs to, or Common when it cannot be found.</summary>
+        public static string FindRarity(RewardDef def)
+        {
+            if (def == null || ModConfig.Current == null || ModConfig.Current.pools == null)
+            {
+                return "Common";
+            }
+
+            string[] rarities = ModConfig.Rarities;
+            for (int r = 0; r < rarities.Length; r++)
+            {
+                List<RewardDef> pool = ModConfig.Current.GetPool(rarities[r]);
+                if (pool == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    if (ReferenceEquals(pool[i], def))
+                    {
+                        return rarities[r];
+                    }
+                }
+            }
+
+            return "Common";
+        }
+
+        private static CycleEffectModel TryGetCycleEffect(string name)
+        {
+            try
+            {
+                Settings settings = SO.Settings;
+                if (settings == null)
+                {
+                    return null;
+                }
+
+                return settings.ContainsCycleEffect(name) ? settings.GetCycleEffect(name) : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>

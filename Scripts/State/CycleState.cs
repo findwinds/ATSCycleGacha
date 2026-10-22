@@ -9,6 +9,12 @@ namespace Forwindz.CycleGacha
     {
         public string rewardId;
         public string rarity;
+
+        /// <summary>
+        /// Drawn options stay on the board so the radial layout keeps its shape and the draw
+        /// animation has slots to skip over; they are rendered greyed out.
+        /// </summary>
+        public bool drawn;
     }
 
     /// <summary>
@@ -19,6 +25,9 @@ namespace Forwindz.CycleGacha
     public class CycleState
     {
         public int tickets;
+
+        /// <summary>Reward of a draw whose reveal animation has not finished yet; committed when it lands.</summary>
+        public string pendingRewardId;
         public bool wheelGenerated;
         public List<WheelOption> wheel = new List<WheelOption>();
         public List<string> rewardIds = new List<string>();

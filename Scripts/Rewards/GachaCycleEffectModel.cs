@@ -1,4 +1,5 @@
 using Eremite.Model.Meta;
+using UnityEngine;
 
 namespace Forwindz.CycleGacha
 {
@@ -11,11 +12,15 @@ namespace Forwindz.CycleGacha
     /// EmbarkEffectCycleEffectModel renders ">MISSING KEY<" in the world map tooltip. Overriding the
     /// two text members lets the tooltip show the name and description from cycle_gacha.json, while
     /// application logic (AddPerk + AddEmbarkEffect) stays exactly the game's own.
+    ///
+    /// GetColor is overridden as well: the base palette only knows positive/negative, so every perk
+    /// looked alike; the frame now carries the reward's rarity colour.
     /// </summary>
     public class GachaCycleEffectModel : EmbarkEffectCycleEffectModel
     {
         public string perkTitle;
         public string perkDescription;
+        public Color frameColor;
 
         public override string DisplayName
         {
@@ -40,6 +45,24 @@ namespace Forwindz.CycleGacha
             }
 
             return base.GetDescription();
+        }
+
+        public override Color GetColor()
+        {
+            return frameColor;
+        }
+    }
+
+    /// <summary>
+    /// Cycle perk created at runtime for a goods reward, with the same rarity-coloured frame.
+    /// </summary>
+    public class GachaGoodPerkModel : EmbarkGoodCycleEffectModel
+    {
+        public Color frameColor;
+
+        public override Color GetColor()
+        {
+            return frameColor;
         }
     }
 }

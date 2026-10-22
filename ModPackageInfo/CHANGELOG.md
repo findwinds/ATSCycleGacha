@@ -1,3 +1,66 @@
+# 0.13.0
+
+- The perk icons the mod adds to the world map's cycle strip now use the reward's rarity colour
+  (grey/white, green, blue, purple, orange) instead of the game's single positive/negative colour.
+  `CycleEffectModel.GetColor()` is virtual, so the generated models (`GachaCycleEffectModel` for
+  buffs, `GachaGoodPerkModel` for goods) override it and return the rarity colour of the reward they
+  came from; `RarityPalette` is the single source for those colours, used by both the strip and the
+  gacha window.
+- Board layout is no longer radial. The legendary option is one large card in the middle (2x2 grid
+  cells) and the other 30 options fill the surrounding cells in a compact card block, ordered by a
+  stable hash of the reward id so the arrangement looks random but never reshuffles between frames
+  or reloads.
+- Card text follows the card size (grid cell) rather than the rarity, cards have a visible panel
+  fill, and the icon column is narrower so names get room.
+
+# 0.12.0
+
+- Goods rewards now appear in the world map's cycle perk strip like the buffs. The game only ships
+  embark-good perks for its own bundles, so each goods reward gets a generated
+  `EmbarkGoodCycleEffectModel` (named `CycleGacha_good_<reward id>`) with the right good and amount,
+  its own "+N <good>" title and description, registered in the cycle effect lookup. `Apply()`
+  registers both the perk icon and the caravan goods.
+- Draw animation is now two phases: the sweep eases out (slowest right before deciding) and lands on
+  the winner, which then keeps blinking for five seconds before the buttons unlock.
+- The result is only committed when the sweep lands: the side panel's owned-reward list and count no
+  longer reveal the prize while the highlight is still running. The pending reward is stored in the
+  save (`pendingRewardId`) and committed on the next session if the game is closed mid-animation,
+  so a draw is never lost.
+
+# 0.11.0
+
+- The board is now radial instead of a grid: the legendary option sits in the middle and each lower
+  rarity forms a ring around it (2 epic, 4 rare, 8 uncommon, 16 common), with the card size and text
+  size stepping down per rarity, so the layout itself shows how rare an option is.
+- Drawing animates: a highlight runs around the board, skips options that were already taken, slows
+  down and stops on the winning option. The result is reported under the board.
+- Drawn options stay on the board, greyed out, instead of disappearing - that keeps the rings in
+  shape and gives the sweep something to skip. `WheelOption.drawn` is persisted, so a reload keeps
+  them greyed.
+- Hovering a card shows its name, rarity, charge and description in a tooltip.
+
+# 0.10.0
+
+- New default reward table, Chinese text only:
+  - two percentage buffs per tier - 生产速度 (+1/+3/+6/+10/+15%) and 生产翻倍几率
+    (+1/+2/+3/+4/+5%);
+  - 19 goods with per-tier amounts (管道, 晶露, 琥珀, 零部件, 砖头, 面粉, 野火精华, 油, 稻子,
+    成包的供给品, 蘑菇, 陶器, 靴子, 蔬菜, 昆虫, 木板, 工具, 石头, 蛋), so every tier offers the
+    same 21 options and the wheel keeps drawing 1/2/4/8/16 of them;
+  - reward text no longer carries the English half, and goods use the game's own localised names;
+  - population rewards are no longer part of the default pool.
+- Percentages the game does not ship as effects are generated at runtime: the mod clones a shipped
+  `GlobalProductionRateEffectModel` / `GlobalExtraProductionChanceEffectModel`, sets its `amount` and
+  registers it in Settings' effect lookup (`CycleGacha_production_speed_6`, ...). Config keys use the
+  `cycle:production_speed:<percent>` / `cycle:double_yield:<percent>` form. Verified in the log that
+  the generated effects report the intended amount (+1% .. +15%).
+- Config schema is now 4; an old `cycle_gacha.json` is backed up to `.old` and rebuilt.
+- The wheel is rebuilt when it references reward ids the current table no longer has, so a save
+  opened after a table change shows the new cards instead of raw ids.
+- The cycle perk list is reconciled against the current table: perks whose effect no longer exists
+  are dropped (and removed from `bonusEmbarkEffects`) instead of making the world map stall on a
+  `Settings.GetCycleEffect` miss, and the models for the remaining ones are re-created.
+
 # 0.9.0
 
 - Reworked the gacha window so it reads as part of the game instead of a default IMGUI panel:

@@ -112,7 +112,7 @@ namespace Forwindz.CycleGacha
                 {
                     string json = File.ReadAllText(ConfigPath);
                     Current = JsonConvert.DeserializeObject<ModConfig>(json);
-                    if (Current == null || Current.schemaVersion < 3)
+                    if (Current == null || Current.schemaVersion < 4)
                     {
                         if (Current != null)
                         {
@@ -297,66 +297,95 @@ namespace Forwindz.CycleGacha
         public static ModConfig CreateDefault()
         {
             ModConfig config = new ModConfig();
-            config.schemaVersion = 3;
+            config.schemaVersion = 4;
 
-            AddTier(config.pools.legendary, "legendary", 50, 20, 5, "Global_Production_Faster_25", 25);
-            AddTier(config.pools.epic, "epic", 40, 15, 4, "Global_Production_Faster_20", 20);
-            AddTier(config.pools.rare, "rare", 30, 10, 3, "Global_Production_Faster_15", 15);
-            AddTier(config.pools.uncommon, "uncommon", 20, 5, 2, "Global_Production_Faster_10", 10);
-
-            // Common: exactly 16 single-type rewards.
-            config.pools.common.Add(Percent("common_percent", "Global_Production_Faster_5", 5));
-            config.pools.common.Add(Resource("common_food_roots", "Food_Raw_Roots", 10));
-            config.pools.common.Add(Resource("common_food_meat", "Food_Raw_Meat", 10));
-            config.pools.common.Add(Resource("common_food_vegetables", "Food_Raw_Vegetables", 10));
-            config.pools.common.Add(Resource("common_mat_wood", "Mat_Raw_Wood", 1));
-            config.pools.common.Add(Resource("common_mat_stone", "Mat_Raw_Stone", 1));
-            config.pools.common.Add(Resource("common_mat_clay", "Mat_Raw_Clay", 1));
-            config.pools.common.Add(Settlers("common_settlers", 1));
-            config.pools.common.Add(Resource("common_processed_planks", "Mat_Processed_Planks", 1));
-            config.pools.common.Add(Resource("common_processed_bricks", "Mat_Processed_Bricks", 1));
-            config.pools.common.Add(Resource("common_processed_fabric", "Mat_Processed_Fabric", 1));
-            config.pools.common.Add(Resource("common_service_tea", "Needs_Tea", 1));
-            config.pools.common.Add(Resource("common_service_wine", "Needs_Wine", 1));
-            config.pools.common.Add(Resource("common_service_incense", "Needs_Incense", 1));
-            config.pools.common.Add(Resource("common_metal_copper", "Metal_Copper_Bar", 1));
-            config.pools.common.Add(Resource("common_tools", "Tools_Simple_Tools", 1));
+            AddTier(config.pools.legendary, "legendary", 4, 15, 5);
+            AddTier(config.pools.epic, "epic", 3, 10, 4);
+            AddTier(config.pools.rare, "rare", 2, 6, 3);
+            AddTier(config.pools.uncommon, "uncommon", 1, 3, 2);
+            AddTier(config.pools.common, "common", 0, 1, 1);
 
             return config;
         }
 
-        private static void AddTier(List<RewardDef> pool, string prefix, int food, int material, int settlers, string percentEffect, int percent)
+        /// <summary>
+        /// Every tier offers the same 21 options: the two percentage buffs plus 19 goods, with the
+        /// amounts taken from the table below for that tier.
+        /// </summary>
+        private static void AddTier(List<RewardDef> pool, string prefix, int tier, int speedPercent, int doublePercent)
         {
-            pool.Add(Percent(prefix + "_percent", percentEffect, percent));
-            pool.Add(Resource(prefix + "_food_roots", "Food_Raw_Roots", food));
-            pool.Add(Resource(prefix + "_food_meat", "Food_Raw_Meat", food));
-            pool.Add(Resource(prefix + "_food_vegetables", "Food_Raw_Vegetables", food));
-            pool.Add(Resource(prefix + "_mat_wood", "Mat_Raw_Wood", material));
-            pool.Add(Resource(prefix + "_mat_stone", "Mat_Raw_Stone", material));
-            pool.Add(Resource(prefix + "_mat_clay", "Mat_Raw_Clay", material));
-            pool.Add(Settlers(prefix + "_settlers", settlers));
+            pool.Add(Buff(
+                prefix + "_speed",
+                "cycle:production_speed:" + speedPercent,
+                "生产速度 +" + speedPercent + "%",
+                "全局生产速度 +" + speedPercent + "%。"));
+
+            pool.Add(Buff(
+                prefix + "_double",
+                "cycle:double_yield:" + doublePercent,
+                "生产翻倍几率 +" + doublePercent + "%",
+                "村民进行生产时有 " + doublePercent + "% 几率获得双倍产出。"));
+
+            for (int i = 0; i < s_goodKeys.Length; i++)
+            {
+                pool.Add(Resource(prefix + "_" + s_goodIds[i], s_goodKeys[i], s_goodAmounts[i][tier]));
+            }
         }
+
+        /// <summary>GoodsTypes member names, in the order the table below lists its amounts.</summary>
+        private static readonly string[] s_goodKeys =
+        {
+            "Mat_Processed_Pipe", "Metal_Crystalized_Dew", "Valuable_Amber", "Mat_Processed_Parts",
+            "Mat_Processed_Bricks", "Crafting_Flour", "Hearth_Parts", "Crafting_Oil",
+            "Food_Raw_Grain", "Packs_Pack_Of_Provisions", "Food_Raw_Mushrooms", "Vessel_Pottery",
+            "Needs_Boots", "Food_Raw_Vegetables", "Food_Raw_Insects", "Mat_Processed_Planks",
+            "Tools_Simple_Tools", "Mat_Raw_Stone", "Food_Raw_Eggs"
+        };
+
+        /// <summary>Id fragments, so the config stays readable.</summary>
+        private static readonly string[] s_goodIds =
+        {
+            "pipe", "dew", "amber", "parts", "bricks", "flour", "wildfire", "oil", "grain",
+            "provisions", "mushrooms", "pottery", "boots", "vegetables", "insects", "planks",
+            "tools", "stone", "eggs"
+        };
+
+        /// <summary>Amounts per tier: common, uncommon, rare, epic, legendary.</summary>
+        private static readonly int[][] s_goodAmounts =
+        {
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 1, 3, 6, 10, 15 },
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 20, 30, 50, 80, 120 },
+            new[] { 1, 3, 6, 10, 15 },
+            new[] { 20, 30, 50, 80, 120 },
+            new[] { 20, 30, 50, 80, 120 },
+            new[] { 10, 12, 15, 19, 24 },
+            new[] { 10, 25, 45, 70, 100 },
+            new[] { 20, 30, 50, 80, 120 },
+            new[] { 10, 20, 35, 55, 80 },
+            new[] { 10, 20, 40, 80, 160 },
+            new[] { 10, 20, 40, 80, 160 },
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 5, 10, 20, 35, 55 },
+            new[] { 10, 20, 40, 80, 160 },
+            new[] { 20, 30, 50, 80, 120 }
+        };
 
         private static GoodAmount G(string good, int amount)
         {
             return new GoodAmount { good = good, amount = amount };
         }
 
-        private static RewardDef Buff(string id, string effect)
+        private static RewardDef Buff(string id, string effect, string name, string description)
         {
             RewardDef def = new RewardDef();
             def.id = id;
             def.effect = effect;
-            return def;
-        }
-
-        private static RewardDef Percent(string id, string effect, int percent)
-        {
-            RewardDef def = new RewardDef();
-            def.id = id;
-            def.effect = effect;
-            def.name = $"全局生产速度 +{percent}% / Production +{percent}%";
-            def.description = $"全局生产速度 +{percent}%。";
+            def.name = name;
+            def.description = description;
             return def;
         }
 
@@ -365,14 +394,6 @@ namespace Forwindz.CycleGacha
             RewardDef def = new RewardDef();
             def.id = id;
             def.goods.Add(G(good, amount));
-            return def;
-        }
-
-        private static RewardDef Settlers(string id, int count)
-        {
-            RewardDef def = new RewardDef();
-            def.id = id;
-            def.villagers = count;
             return def;
         }
     }

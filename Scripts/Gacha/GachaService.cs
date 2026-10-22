@@ -17,7 +17,7 @@ namespace Forwindz.CycleGacha
         public static bool EnsureWheel()
         {
             CycleState state = CycleStateStore.State;
-            if (!state.wheelGenerated)
+            if (!state.wheelGenerated || WheelHasUnknownRewards(state))
             {
                 GenerateWheel();
             }
@@ -25,10 +25,53 @@ namespace Forwindz.CycleGacha
             return state.wheel.Count > 0;
         }
 
+        /// <summary>
+        /// True when the stored wheel references reward ids the current config no longer has, which
+        /// happens after the reward table changes; the wheel is then rebuilt from the new pools.
+        /// </summary>
+        private static bool WheelHasUnknownRewards(CycleState state)
+        {
+            if (state.wheel == null)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < state.wheel.Count; i++)
+            {
+                WheelOption option = state.wheel[i];
+                if (option == null || RewardService.FindDef(option.rewardId) == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static bool CanDraw()
         {
             CycleState state = CycleStateStore.State;
-            return state.wheel.Count > 0 && state.tickets > 0;
+            return state.tickets > 0 && CountUndrawn(state) > 0;
+        }
+
+        public static int CountUndrawn(CycleState state)
+        {
+            if (state == null || state.wheel == null)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            for (int i = 0; i < state.wheel.Count; i++)
+            {
+                WheelOption option = state.wheel[i];
+                if (option != null && !option.drawn)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         public static WheelOption Draw()
@@ -41,23 +84,51 @@ namespace Forwindz.CycleGacha
                 }
 
                 CycleState state = CycleStateStore.State;
-                if (state.wheel.Count == 0 || state.tickets <= 0)
+                if (state.tickets <= 0)
                 {
                     return null;
                 }
 
-                int index = s_random.Next(state.wheel.Count);
-                WheelOption option = state.wheel[index];
-                state.wheel.RemoveAt(index);
+                int undrawn = CountUndrawn(state);
+                if (undrawn == 0)
+                {
+                    return null;
+                }
+
+                // Pick uniformly among the options that are still on the board, then mark the
+                // option drawn instead of removing it: the board keeps its shape and the animation
+                // has a slot to stop on.
+                int pick = s_random.Next(undrawn);
+                WheelOption option = null;
+                for (int i = 0; i < state.wheel.Count; i++)
+                {
+                    WheelOption candidate = state.wheel[i];
+                    if (candidate == null || candidate.drawn)
+                    {
+                        continue;
+                    }
+
+                    if (pick-- == 0)
+                    {
+                        option = candidate;
+                        break;
+                    }
+                }
+
+                if (option == null)
+                {
+                    return null;
+                }
+
+                option.drawn = true;
                 state.tickets--;
 
                 state.drawsSinceWheelGenerated++;
                 state.totalDraws++;
-                state.rewardIds.Add(option.rewardId);
 
-                // Buff rewards go into the game's cycle effect list right away, so the game
-                // applies and displays them like a world-event reward from the next settlement on.
-                RewardService.OnRewardDrawn(option.rewardId);
+                // The reward is only recorded once the UI animation reveals it (CommitPending), so
+                // the owned list cannot spoil the result while the highlight is still moving.
+                state.pendingRewardId = option.rewardId;
 
                 int gainedCharge = ModConfig.Current.GetCharge(option.rarity);
                 state.drawCharge += gainedCharge;
@@ -84,6 +155,29 @@ namespace Forwindz.CycleGacha
         public static bool CanReset()
         {
             return CycleStateStore.State.drawsSinceWheelGenerated > 0;
+        }
+
+        /// <summary>
+        /// Records the reward of the last draw. Called when the UI finishes its reveal, or on the
+        /// next session if the game was closed mid-animation, so a draw is never lost.
+        /// </summary>
+        public static void CommitPending()
+        {
+            CycleState state = CycleStateStore.State;
+            string pending = state.pendingRewardId;
+            if (string.IsNullOrEmpty(pending))
+            {
+                return;
+            }
+
+            state.pendingRewardId = null;
+            state.rewardIds.Add(pending);
+
+            // Buffs and goods are handed to the game's cycle bonuses now, so they show up on the
+            // world map and apply at the next settlement like a world event reward.
+            RewardService.OnRewardDrawn(pending);
+            CycleStateStore.PersistImmediately();
+            Plugin.Log.LogInfo("Committed gacha reward: " + pending);
         }
 
         public static bool ResetWheel()
@@ -129,6 +223,7 @@ namespace Forwindz.CycleGacha
                     WheelOption option = new WheelOption();
                     option.rewardId = def.id;
                     option.rarity = rarity;
+                    option.drawn = false;
                     state.wheel.Add(option);
                 }
             }
@@ -144,7 +239,8 @@ namespace Forwindz.CycleGacha
             int count = 0;
             for (int i = 0; i < state.wheel.Count; i++)
             {
-                if (state.wheel[i].rarity == rarity)
+                WheelOption option = state.wheel[i];
+                if (option != null && option.rarity == rarity && !option.drawn)
                 {
                     count++;
                 }
