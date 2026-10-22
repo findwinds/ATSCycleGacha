@@ -153,27 +153,7 @@
 
 ---
 
-## 6. 已知限制 / 需要实机确认的点
-
-这个仓库是在**没有安装游戏本体**的环境里写的，代码按 ATS_API 3.7.0（其枚举由游戏 1.9.3R 生成）和社区 mod 的实际用法对齐，但仍建议第一次实机测试时检查：
-
-1. 日志里这 4 个 patch 是否都出现：
-   - `Patched Eremite.Services.ReputationService.CheckForWin`
-   - `Patched Eremite.Services.ReputationService.ForceGameWin`
-   - `Patched Eremite.Services.ReputationService.GameLost`
-   - `Patched Eremite.Services.EffectsService.AddLateInitialEffects`
-2. 赢下一局后，日志是否出现 `+10 draw ticket(s)`，大地图左上角是否显示券数。
-3. 按 F7 是否能打开窗口；抽奖后日志是否出现 `Gacha draw #... (charge +...)`。
-4. 下一局开局后，日志是否出现 `Applied N/M cycle reward(s)`；物资/人口/百分比加成是否到账。
-5. 如果日志出现 `Could not find effect 'XXX'` 或 `Unknown good 'XXX'`，说明配置名字在当前游戏版本不存在；用 ATS_API 的 `EffectTypes` / `GoodsTypes` 枚举名替换。
-6. 失败不发券是默认行为；需要的话把 `grantTicketOnLoss` 改成 `true`。
-7. 界面是 31 格 IMGUI 卡片网格（可滚动），不是动画转盘；buff 不会写进大地图的 World Event 活动列表。
-
-兼容性注意：如果同时使用了会**完全替换** `ReputationService.CheckForWin/ForceGameWin/GameLost` 或 `EffectsService.AddLateInitialEffects` 的作弊类 mod（prefix 返回 `false`、不执行原方法），对应的 postfix 可能不会被执行。
-
----
-
-## 7. 目录结构
+## 6. 目录结构
 
 ```
 ATSCycleGacha/
