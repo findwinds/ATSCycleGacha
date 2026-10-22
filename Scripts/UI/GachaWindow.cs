@@ -627,7 +627,7 @@ namespace Forwindz.CycleGacha
             DrawIcon(icon, GetRewardIcon(option != null ? option.rewardId : null), drawn ? 0.32f : 1f);
 
             int fontSize = Mathf.Clamp(Mathf.RoundToInt(rect.height * 0.20f), 9, 26);
-            GUIStyle nameStyle = TextStyle(fontSize, drawn ? 1 : -1, rarity, false);
+            GUIStyle nameStyle = TextStyle(fontSize, drawn ? 1 : -1, rarity, true);
             GUIStyle captionStyle = TextStyle(Mathf.Max(9, Mathf.RoundToInt(fontSize * 0.85f)), drawn ? 1 : 0, rarity, true);
 
             string charge = "+" + (option != null ? ModConfig.Current.GetCharge(option.rarity) : "0");

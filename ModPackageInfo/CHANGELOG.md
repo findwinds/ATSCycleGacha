@@ -1,3 +1,7 @@
+# 0.14.1
+
+- Reward card names are now tinted with the rarity colour (legendary orange, epic purple, rare blue, uncommon green, common grey-white) instead of plain white. Drawn cards keep their dimmed grey text.
+
 # 0.14.0
 
 - Removed the `wheel`, `charge` and `pools` sections from `cycle_gacha.json`. The 31-slot board shape, per-rarity charge values and the reward table are now fixed in code (`ModConfig` / `BuildPools`) because they are tuned to the 6x6 UI.
