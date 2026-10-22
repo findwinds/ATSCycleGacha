@@ -14,7 +14,7 @@ namespace Forwindz.CycleGacha
     {
         public const string PLUGIN_GUID = "Forwindz.CycleGacha";
         public const string PLUGIN_NAME = "Cycle Gacha";
-        public const string PLUGIN_VERSION = "0.13.0";
+        public const string PLUGIN_VERSION = "0.13.1";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]

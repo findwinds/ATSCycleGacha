@@ -1,3 +1,9 @@
+# 0.13.1
+
+- Card frames now draw the rarity colour on all four sides, not just the top and bottom.
+- The 6x6 board is completely filled: the legendary 2x2 card stays centred, the 30 normal cards fill the remaining cells, and the Draw/Reset buttons now sit in the two cells directly below the legendary card.
+- Draw/Reset were moved out of the footer into those board cells; the footer now only shows the last result.
+
 # 0.13.0
 
 - The perk icons the mod adds to the world map's cycle strip now use the reward's rarity colour
