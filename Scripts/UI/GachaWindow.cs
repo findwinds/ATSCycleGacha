@@ -656,6 +656,21 @@ namespace Forwindz.CycleGacha
             if (drawn)
             {
                 Fill(rect, new Color(0f, 0f, 0f, 0.28f));
+
+                // Keep a dimmed rarity ring on taken cards; the gold highlight of the winning
+                // card is left alone during the celebration phase.
+                if (!highlighted)
+                {
+                    Color dimRarity = new Color(
+                        rarityColor.r * 0.72f,
+                        rarityColor.g * 0.72f,
+                        rarityColor.b * 0.72f,
+                        1f);
+                    Fill(new Rect(rect.x, rect.y, rect.width, 2f * s), dimRarity);
+                    Fill(new Rect(rect.x, rect.y + rect.height - 2f * s, rect.width, 2f * s), dimRarity);
+                    Fill(new Rect(rect.x, rect.y, 2f * s, rect.height), dimRarity);
+                    Fill(new Rect(rect.x + rect.width - 2f * s, rect.y, 2f * s, rect.height), dimRarity);
+                }
             }
 
             if (hover)

@@ -152,9 +152,36 @@ namespace Forwindz.CycleGacha
             }
         }
 
+        /// <summary>
+        /// The wheel can only be rerolled after the legendary option has been drawn. If the
+        /// configuration has no legendary option at all, fall back to the old any-draw rule so the
+        /// board can never become permanently stuck.
+        /// </summary>
         public static bool CanReset()
         {
-            return CycleStateStore.State.drawsSinceWheelGenerated > 0;
+            CycleState state = CycleStateStore.State;
+            if (state == null || state.wheel == null)
+            {
+                return false;
+            }
+
+            bool hasLegendary = false;
+            for (int i = 0; i < state.wheel.Count; i++)
+            {
+                WheelOption option = state.wheel[i];
+                if (option == null || option.rarity != "Legendary")
+                {
+                    continue;
+                }
+
+                hasLegendary = true;
+                if (option.drawn)
+                {
+                    return true;
+                }
+            }
+
+            return !hasLegendary && state.drawsSinceWheelGenerated > 0;
         }
 
         /// <summary>

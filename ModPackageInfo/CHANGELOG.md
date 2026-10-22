@@ -1,3 +1,8 @@
+# 0.13.2
+
+- Drawn (dimmed) cards now keep a dimmed rarity-coloured frame on all four sides, instead of losing the rarity ring.
+- The wheel can now only be rerolled after the legendary reward has been drawn. If the config has no legendary option at all, the old any-draw fallback is kept so the board cannot become permanently stuck.
+
 # 0.13.1
 
 - Card frames now draw the rarity colour on all four sides, not just the top and bottom.
