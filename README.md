@@ -41,7 +41,6 @@
 
 - 抽一次消耗 1 张券，随机抽走一个选项并**从转盘剔除**。
 - **只有抽走传说级奖励后**，才能免费重置转盘，重新生成 31 个选项；已抽到的奖励不会消失。
-  如果配置里没有传说级选项，则退回“至少抽过一次后可重置”的旧规则，避免转盘卡死。
 - 同稀有度优先不重复；每个奖励都是**单一内容**（一个效果 / 一种物资 / 一组人口），不会出现复合奖励。
 - 抽到的奖励会在这个循环的**每一座新定居点开局时重新生效**。
 
@@ -82,16 +81,12 @@
 | 史诗 | +10% | +4% |
 | 传说 | +15% | +5% |
 
-游戏自带的百分比效果资源只覆盖 5/8/10/15/20/25…（生产速度）和 10/15/20/25/30（翻倍几率），
-所以其它数值由 mod 在运行时克隆同类型模板并改写 `amount` 生成，名字形如
-`CycleGacha_production_speed_6`、`CycleGacha_double_yield_3`。
 ---
 
 ## 2. 界面
 
 - 大地图（WorldMap）场景按 **F7**，或点击左上角的抽奖券徽标，打开/关闭抽奖窗口。
-- 外观沿用游戏原版风格：深色皮革底 + 细金边（程序生成九宫格贴图）、羊皮纸色文字、金色标题，
-  卡片显示真实物品图标（`GoodModel.icon` / `EffectModel.GetIcon()`）。
+- 外观沿用游戏原版风格：深色皮革底、金色边框、羊皮纸色文字，卡片显示物品图标。
 - 转盘是 **6×6 紧凑卡片组**：
   - 传说奖励是一张 **2×2 的大卡**，固定在正中间；
   - 其余 30 张普通卡片填满剩下的 30 个格子；
@@ -135,46 +130,5 @@
 - `ticketsPerSettlement`：每次胜利给多少张券，默认 `10`。
 
 ---
-
-## 5. 实现方式
-
-- **发券**：Harmony postfix 挂在 `Eremite.Services.ReputationService` 的 `CheckForWin`（声望达到阈值）、`ForceGameWin`（胜利结算）和 `GameLost`（失败）上；`CurrentSettlement` 标记保证每局最多一次发券。每局发 `ticketsPerSettlement` 张（默认 10）。
-- **循环持久化**：抽奖券、进度、转盘、已抽到的奖励 ID 存在 ATS_API 的 `ModSaveData.CurrentCycle`；`WorldCalendarService.OnCycleEnded` 时 API 自动清空（包括券、进度、转盘和已抽内容）。
-- **抽奖**：每次从剩余选项里均匀随机一个，标记为已抽走并扣 1 券，按稀有度加进度；满 10 点 +1 券，溢出保留。
-- **应用奖励**：不自己 apply，而是把奖励交给游戏自己的循环加成系统（世界事件给循环奖励走的就是这条路）：
-  - `effect` → `SO.CycleEffectsService.AddEmbarkEffect(效果内部名)`，写进 `WorldStateService.CycleEffects.bonusEmbarkEffects`
-  - `goods` → `SO.CycleEffectsService.ChangeEmbarkGoods(new Good(物资名, 数量))`，写进 `bonusEmbarkGoods`
-  - `villagers` → `SO.CycleEffectsService.ChangeEmbarkVillagers(n)`，写进 `bonusEmbarkVillagers`
-  - 之后游戏自己完成剩下的：`CaravanGenerator` 把三项抄进车队 → `RegularGameConditionsCreator.SetUpEmbarkBonuses` 拼成 `embarkEffects` / `embarkGoods` → 开局时 `EffectsService.AddLateInitialEffects` 应用加成、`StorageService.StoreInitialGoods` 以 `InitialCaravan` 入库物资、`CaravanGenerator.GetVillagersAmount` 决定初始人口；大地图的车队界面（`CaravanPickSlot`）会列出这些加成。
-  - 循环结束时 `CycleEffectsService.OnCycleEnded()` 重建这份状态，所以奖励随循环清空，和本 mod 自己的存档数据同步。
-  - 旧版本（0.5.0/0.6.0）自己动手应用的奖励，会在读档后按 `registeredRewardIds` 的差集补登记一次，不会重复。
-- **抽奖 UI**：插件 `OnGUI` 里判断当前场景是 `WorldMap`，用 Unity IMGUI 画窗口；热键通过 ATS_API 的 `Hotkeys` 注册。
-- **不改原声望/原效果**：没有监听声望；只读对局结果并调用游戏自己的效果/存储/居民服务。
-
----
-
-## 6. 目录结构
-
-```
-ATSCycleGacha/
-├─ CycleGacha.csproj
-├─ Directory.Build.props.example   # 复制为 Directory.Build.props 并填路径
-├─ NuGet.Config
-├─ Scripts/
-│  ├─ Plugin.cs                    # BepInEx 入口、Harmony、热键、OnGUI
-│  ├─ Config/ModConfig.cs          # 运行选项 + 内置 31 格/进度/奖励表
-│  ├─ State/CycleState.cs          # 抽奖券、进度、转盘、已抽奖励
-│  ├─ State/CycleStateStore.cs     # CurrentCycle 读写、循环重置、对局标记
-│  ├─ Gacha/TicketService.cs       # 对局结束发券
-│  ├─ Gacha/GachaService.cs        # 生成/抽取/重置转盘、进度与 +1 券
-│  ├─ Rewards/RewardService.cs    # 开局应用效果/物资/居民、奖励显示
-│  ├─ Tracking/SettlementEndPatch.cs # CheckForWin/ForceGameWin/GameLost postfix
-│  ├─ Tracking/SettlementStartPatch.cs # AddLateInitialEffects postfix
-│  └─ UI/GachaWindow.cs            # 大地图 IMGUI 抽奖界面
-└─ ModPackageInfo/
-   ├─ manifest.json
-   ├─ icon.png
-   └─ CHANGELOG.md
-```
 
 编译方法见 [HowToBuild.md](HowToBuild.md)。
