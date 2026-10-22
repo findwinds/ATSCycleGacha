@@ -1,3 +1,9 @@
+# 0.14.0
+
+- Removed the `wheel`, `charge` and `pools` sections from `cycle_gacha.json`. The 31-slot board shape, per-rarity charge values and the reward table are now fixed in code (`ModConfig` / `BuildPools`) because they are tuned to the 6x6 UI.
+- The config now only holds runtime options: `schemaVersion`, `gachaHotkey`, `grantTicketOnLoss`, `ticketsPerSettlement`, `showWorldMapPerkIcons`.
+- Existing configs are backed up as `.old` and regenerated with the small schema.
+
 # 0.13.2
 
 - Drawn (dimmed) cards now keep a dimmed rarity-coloured frame on all four sides, instead of losing the rarity ring.

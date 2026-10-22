@@ -116,61 +116,34 @@
 
 ## 4. 配置说明
 
-`cycle_gacha.json` 位于 `CycleGacha.dll` 同目录。
+`cycle_gacha.json` 位于 `CycleGacha.dll` 同目录，现在只保留运行选项：
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "gachaHotkey": "F7",
   "grantTicketOnLoss": false,
   "ticketsPerSettlement": 10,
-  "wheel": {
-    "legendary": 1,
-    "epic": 2,
-    "rare": 4,
-    "uncommon": 8,
-    "common": 16
-  },
-  "charge": {
-    "legendary": 5,
-    "epic": 4,
-    "rare": 3,
-    "uncommon": 2,
-    "common": 1
-  },
-  "pools": {
-    "legendary": [
-      {
-        "id": "legendary_percent",
-        "effect": "cycle:production_speed:15",
-        "goods": [],
-        "villagers": 0,
-        "race": null,
-        "name": null,
-        "description": null,
-        "weight": 1
-      }
-    ]
-  }
+  "showWorldMapPerkIcons": true
 }
 ```
 
 字段：
 
-- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建默认配置（0.10.0 的奖励结构变了，需要重新填自定义池）。
+- `schemaVersion`：配置版本，不要手动改；旧版配置会自动备份为 `.old` 并重建默认配置（0.14.0 移除了奖励池配置）。
 - `gachaHotkey`：大地图打开抽奖窗口的热键，填 `UnityEngine.KeyCode` 的名字，如 `F7`。
 - `grantTicketOnLoss`：失败是否也给券，默认 `false`。
 - `ticketsPerSettlement`：每次胜利给多少张券，默认 `10`。
-- `wheel`：每个稀有度在转盘里的数量，默认 `1/2/4/8/16`（共 31）。
-- `charge`：每个稀有度抽到时给进度条加多少点，默认 `5/4/3/2/1`（满 10 点 +1 券）。
-- `pools`：每个稀有度的奖池。每个奖励条目**只能填一种内容**：
-  - `effect`：可选。三种写法：`cycle:production_speed:6` / `cycle:double_yield:3`（任意百分比，缺的数值由 mod 运行时生成）、`EffectTypes` 枚举名（如 `Global_Production_Faster_25`）、或效果内部名。
-  - `goods`：可选，**最多一个** `GoodAmount`；`good` 填 `GoodsTypes` 枚举名（如 `Food_Raw_Roots`）或内部名，`amount` 为数量。
-  - `villagers` / `race`：可选，居民数量与种族；`race` 留空表示从当前定居点已有种族随机。
-  - `name` / `description`：可选显示文本；留空时，效果类用游戏内文本，物资/人口类自动拼出摘要。
-  - `weight`：抽取权重，默认 1；设为 0 可以让该条目永不抽中。
+- `showWorldMapPerkIcons`：是否把抽到的奖励显示在大地图左下角的循环加成条里，默认 `true`。
 
-同时填 `effect`、`goods`、`villagers` 中两项或以上的条目会被视为复合奖励并跳过；`goods` 超过一个的条目也会被跳过。改完配置需要重启游戏。
+**以下内容已固定在代码里，不再从配置读取：**
+
+- 转盘数量：1 Legendary / 2 Epic / 4 Rare / 8 Uncommon / 16 Common（31 格，6×6 UI 专用）。
+- 进度充能：Legendary 5 / Epic 4 / Rare 3 / Uncommon 2 / Common 1（满 10 点 +1 券）。
+- 奖励池：每个稀有度固定提供 2 个百分比加成 + 19 种单一物资；数值表在 `ModConfig.BuildPools()` 里。
+- 每个奖励的单一类型规则（一个效果、一种物资或一组人口）也在代码里保证。
+
+因此不再需要 `wheel`、`charge`、`pools` 这些配置项；旧配置文件会被自动替换。
 
 ---
 
@@ -178,7 +151,7 @@
 
 - **发券**：Harmony postfix 挂在 `Eremite.Services.ReputationService` 的 `CheckForWin`（声望达到阈值）、`ForceGameWin`（胜利结算）和 `GameLost`（失败）上；`CurrentSettlement` 标记保证每局最多一次发券。每局发 `ticketsPerSettlement` 张（默认 10）。
 - **循环持久化**：抽奖券、进度、转盘、已抽到的奖励 ID 存在 ATS_API 的 `ModSaveData.CurrentCycle`；`WorldCalendarService.OnCycleEnded` 时 API 自动清空（包括券、进度、转盘和已抽内容）。
-- **抽奖**：每次从剩余选项里均匀随机一个，剔除后扣 1 券，按稀有度加进度；满 10 点 +1 券，溢出保留。
+- **抽奖**：每次从剩余选项里均匀随机一个，标记为已抽走并扣 1 券，按稀有度加进度；满 10 点 +1 券，溢出保留。
 - **应用奖励**：不自己 apply，而是把奖励交给游戏自己的循环加成系统（世界事件给循环奖励走的就是这条路）：
   - `effect` → `SO.CycleEffectsService.AddEmbarkEffect(效果内部名)`，写进 `WorldStateService.CycleEffects.bonusEmbarkEffects`
   - `goods` → `SO.CycleEffectsService.ChangeEmbarkGoods(new Good(物资名, 数量))`，写进 `bonusEmbarkGoods`
@@ -220,7 +193,7 @@ ATSCycleGacha/
 ├─ NuGet.Config
 ├─ Scripts/
 │  ├─ Plugin.cs                    # BepInEx 入口、Harmony、热键、OnGUI
-│  ├─ Config/ModConfig.cs          # 券数/31 格转盘/进度/单类型奖池
+│  ├─ Config/ModConfig.cs          # 运行选项 + 内置 31 格/进度/奖励表
 │  ├─ State/CycleState.cs          # 抽奖券、进度、转盘、已抽奖励
 │  ├─ State/CycleStateStore.cs     # CurrentCycle 读写、循环重置、对局标记
 │  ├─ Gacha/TicketService.cs       # 对局结束发券

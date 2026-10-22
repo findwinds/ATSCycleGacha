@@ -92,9 +92,26 @@ namespace Forwindz.CycleGacha
         /// </summary>
         public bool showWorldMapPerkIcons = true;
 
-        public WheelCounts wheel = new WheelCounts();
-        public ChargeValues charge = new ChargeValues();
-        public RewardPools pools = new RewardPools();
+        private static readonly WheelCounts s_wheelCounts = new WheelCounts();
+        private static readonly ChargeValues s_chargeValues = new ChargeValues();
+        private static readonly RewardPools s_pools;
+
+        static ModConfig()
+        {
+            s_pools = BuildPools();
+        }
+
+        /// <summary>The board shape is fixed and tuned to the 6x6 UI.</summary>
+        [JsonIgnore]
+        public WheelCounts wheel { get { return s_wheelCounts; } }
+
+        /// <summary>Charge per rarity is fixed and tuned to the 10-point ticket meter.</summary>
+        [JsonIgnore]
+        public ChargeValues charge { get { return s_chargeValues; } }
+
+        /// <summary>The reward table lives in code, so the JSON config stays minimal.</summary>
+        [JsonIgnore]
+        public RewardPools pools { get { return s_pools; } }
 
         [JsonIgnore]
         public static ModConfig Current { get; private set; }
@@ -112,7 +129,7 @@ namespace Forwindz.CycleGacha
                 {
                     string json = File.ReadAllText(ConfigPath);
                     Current = JsonConvert.DeserializeObject<ModConfig>(json);
-                    if (Current == null || Current.schemaVersion < 4)
+                    if (Current == null || Current.schemaVersion < 5)
                     {
                         if (Current != null)
                         {
@@ -190,122 +207,30 @@ namespace Forwindz.CycleGacha
 
         private void Sanitize()
         {
-            if (wheel == null) wheel = new WheelCounts();
-            if (charge == null) charge = new ChargeValues();
-            if (pools == null) pools = new RewardPools();
-
-            if (pools.legendary == null) pools.legendary = new List<RewardDef>();
-            if (pools.epic == null) pools.epic = new List<RewardDef>();
-            if (pools.rare == null) pools.rare = new List<RewardDef>();
-            if (pools.uncommon == null) pools.uncommon = new List<RewardDef>();
-            if (pools.common == null) pools.common = new List<RewardDef>();
-
-            if (wheel.legendary < 0) wheel.legendary = 0;
-            if (wheel.epic < 0) wheel.epic = 0;
-            if (wheel.rare < 0) wheel.rare = 0;
-            if (wheel.uncommon < 0) wheel.uncommon = 0;
-            if (wheel.common < 0) wheel.common = 0;
-
-            if (charge.legendary < 0) charge.legendary = 0;
-            if (charge.epic < 0) charge.epic = 0;
-            if (charge.rare < 0) charge.rare = 0;
-            if (charge.uncommon < 0) charge.uncommon = 0;
-            if (charge.common < 0) charge.common = 0;
-
             if (ticketsPerSettlement < 1) ticketsPerSettlement = 1;
-
-            SanitizePool(pools.legendary, "legendary", wheel.legendary);
-            SanitizePool(pools.epic, "epic", wheel.epic);
-            SanitizePool(pools.rare, "rare", wheel.rare);
-            SanitizePool(pools.uncommon, "uncommon", wheel.uncommon);
-            SanitizePool(pools.common, "common", wheel.common);
-
-            HashSet<string> ids = new HashSet<string>();
-            CheckDuplicateIds(pools.legendary, ids);
-            CheckDuplicateIds(pools.epic, ids);
-            CheckDuplicateIds(pools.rare, ids);
-            CheckDuplicateIds(pools.uncommon, ids);
-            CheckDuplicateIds(pools.common, ids);
-        }
-
-        private static void CheckDuplicateIds(List<RewardDef> pool, HashSet<string> ids)
-        {
-            for (int i = 0; i < pool.Count; i++)
-            {
-                if (!ids.Add(pool[i].id))
-                {
-                    Plugin.Log.LogWarning($"Duplicate reward id '{pool[i].id}' in cycle_gacha.json. Ids should be unique across all pools.");
-                }
-            }
-        }
-
-        private static void SanitizePool(List<RewardDef> pool, string rarity, int wheelCount)
-        {
-            int usable = 0;
-            for (int i = 0; i < pool.Count; i++)
-            {
-                RewardDef def = pool[i];
-                if (def == null)
-                {
-                    pool.RemoveAt(i--);
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(def.id))
-                {
-                    def.id = rarity + "_" + i;
-                }
-
-                if (def.goods == null)
-                {
-                    def.goods = new List<GoodAmount>();
-                }
-
-                bool hasEffect = !string.IsNullOrEmpty(def.effect);
-                bool hasGoods = def.goods.Count > 0;
-                bool hasVillagers = def.villagers > 0;
-                int kinds = (hasEffect ? 1 : 0) + (hasGoods ? 1 : 0) + (hasVillagers ? 1 : 0);
-                if (kinds == 0)
-                {
-                    Plugin.Log.LogWarning($"Reward '{def.id}' has no effect, goods or villagers; it will be skipped.");
-                    continue;
-                }
-
-                if (kinds > 1)
-                {
-                    Plugin.Log.LogWarning($"Reward '{def.id}' combines multiple reward types (effect/goods/villagers); composite rewards are not allowed and will be skipped.");
-                    continue;
-                }
-
-                if (hasGoods && def.goods.Count > 1)
-                {
-                    Plugin.Log.LogWarning($"Reward '{def.id}' contains multiple goods; single-good rewards only, skipping it.");
-                    continue;
-                }
-
-                if (def.villagers < 0) def.villagers = 0;
-                if (def.weight < 0) def.weight = 0;
-                if (def.weight > 0) usable++;
-            }
-
-            if (wheelCount > 0 && usable == 0)
-            {
-                Plugin.Log.LogWarning($"The {rarity} pool has no usable rewards, but the wheel asks for {wheelCount} option(s). Those slots will be empty.");
-            }
+            if (string.IsNullOrEmpty(gachaHotkey)) gachaHotkey = "F7";
         }
 
         public static ModConfig CreateDefault()
         {
             ModConfig config = new ModConfig();
-            config.schemaVersion = 4;
-
-            AddTier(config.pools.legendary, "legendary", 4, 15, 5);
-            AddTier(config.pools.epic, "epic", 3, 10, 4);
-            AddTier(config.pools.rare, "rare", 2, 6, 3);
-            AddTier(config.pools.uncommon, "uncommon", 1, 3, 2);
-            AddTier(config.pools.common, "common", 0, 1, 1);
-
+            config.schemaVersion = 5;
             return config;
+        }
+
+        /// <summary>
+        /// The fixed reward table. Every tier offers the same 21 options: two percentage buffs plus
+        /// 19 single goods, with the amounts taken from s_goodAmounts for that tier.
+        /// </summary>
+        private static RewardPools BuildPools()
+        {
+            RewardPools pools = new RewardPools();
+            AddTier(pools.legendary, "legendary", 4, 15, 5);
+            AddTier(pools.epic, "epic", 3, 10, 4);
+            AddTier(pools.rare, "rare", 2, 6, 3);
+            AddTier(pools.uncommon, "uncommon", 1, 3, 2);
+            AddTier(pools.common, "common", 0, 1, 1);
+            return pools;
         }
 
         /// <summary>
