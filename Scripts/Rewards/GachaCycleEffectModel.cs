@@ -21,6 +21,7 @@ namespace Forwindz.CycleGacha
         public string perkTitle;
         public string perkDescription;
         public Color frameColor;
+        public int rarityIndex = -1;
 
         public override string DisplayName
         {
@@ -59,6 +60,7 @@ namespace Forwindz.CycleGacha
     public class GachaGoodPerkModel : EmbarkGoodCycleEffectModel
     {
         public Color frameColor;
+        public int rarityIndex = -1;
 
         public override Color GetColor()
         {

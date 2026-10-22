@@ -116,7 +116,7 @@ namespace Forwindz.CycleGacha
                     EffectModel effect = EnsureEffectByName(effectName);
                     if (effect != null)
                     {
-                        GetOrCreatePerkModel(effectName, effect, null);
+                        GetOrCreatePerkModel(effectName, effect, FindDefByEffect(effectName));
                         continue;
                     }
 
@@ -477,6 +477,8 @@ namespace Forwindz.CycleGacha
                 model.name = "CycleGacha_" + effectName;
                 model.effect = effect;
                 model.showAsModifier = false;
+                model.frameColor = FrameColorFor(def);
+                model.rarityIndex = RarityPalette.Index(FindRarity(def));
                 model.perkTitle = BuildPerkTitle(def, effectName);
                 model.perkDescription = BuildPerkDescription(def, effectName);
 
@@ -1460,10 +1462,12 @@ namespace Forwindz.CycleGacha
 
             try
             {
-                EmbarkGoodCycleEffectModel model = ScriptableObject.CreateInstance<EmbarkGoodCycleEffectModel>();
+                GachaGoodPerkModel model = ScriptableObject.CreateInstance<GachaGoodPerkModel>();
                 model.name = modelName;
                 model.good = new GoodRef { good = good, amount = amount };
                 model.label = GachaLabel;
+                model.frameColor = FrameColorFor(def);
+                model.rarityIndex = RarityPalette.Index(FindRarity(def));
 
                 // DisplayName formats displayName.key with the good name, so keep it to "+N {0}".
                 model.displayName = new OverriddenLocaText { key = "+" + amount + " {0}" };
@@ -1520,6 +1524,44 @@ namespace Forwindz.CycleGacha
             }
 
             return "Common";
+        }
+
+        /// <summary>
+        /// The reward definition that uses this effect, so a perk re-created from a save can still
+        /// be coloured by the rarity of the reward it came from.
+        /// </summary>
+        private static RewardDef FindDefByEffect(string effectName)
+        {
+            if (string.IsNullOrEmpty(effectName) || ModConfig.Current == null || ModConfig.Current.pools == null)
+            {
+                return null;
+            }
+
+            string[] rarities = ModConfig.Rarities;
+            for (int r = 0; r < rarities.Length; r++)
+            {
+                List<RewardDef> pool = ModConfig.Current.GetPool(rarities[r]);
+                if (pool == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < pool.Count; i++)
+                {
+                    RewardDef def = pool[i];
+                    if (def == null || string.IsNullOrEmpty(def.effect))
+                    {
+                        continue;
+                    }
+
+                    if (ResolveEffectName(def.effect) == effectName)
+                    {
+                        return def;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static CycleEffectModel TryGetCycleEffect(string name)

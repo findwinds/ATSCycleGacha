@@ -1,3 +1,16 @@
+# 0.14.3
+
+- Fixed the rarity-coloured world map perk frames, which had stopped working:
+  - the refactor dropped the `frameColor` assignments, and goods perks were created as plain
+    `EmbarkGoodCycleEffectModel` instead of the colour-carrying subclass, so both fell back to the
+    game's generic palette;
+  - `CycleEffectModel.GetColor()` turned out to be a dead end anyway: the perk slot prefab leaves
+    `CycleEffectSlot.frame` null and the visible border is a child Image ("Frame", sprite
+    FRAME_Square3_32x32) tinted cyan by the prefab, so the override was never consulted. A postfix on
+    `CycleEffectSlot.SetUp` now tints that image with the reward's rarity colour.
+  - Verified in game by sampling the rendered pixels: uncommon perks R102 G177 B111, common perks
+    R188 G180 B160, matching `RarityPalette` exactly.
+
 # 0.14.2
 
 - `showWorldMapPerkIcons` is now hardcoded to `true` and removed from `cycle_gacha.json`; the world map cycle-perk strip is always populated.

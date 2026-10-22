@@ -14,7 +14,7 @@ namespace Forwindz.CycleGacha
     {
         public const string PLUGIN_GUID = "Forwindz.CycleGacha";
         public const string PLUGIN_NAME = "Cycle Gacha";
-        public const string PLUGIN_VERSION = "0.14.2";
+        public const string PLUGIN_VERSION = "0.14.3";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -131,6 +131,17 @@ namespace Forwindz.CycleGacha
                 typeof(CyclePerksHudPatch),
                 nameof(CyclePerksHudPatch.Prefix),
                 true);
+
+            // The perk slot prefab has its colorFrame flag off, so CycleEffectModel.GetColor() is
+            // never consulted and every generated perk kept the frame sprite's own cyan tint.
+            // This postfix gives the mod's perks a generated frame tinted with their rarity colour.
+            Patch(
+                "CycleEffectSlot.SetUp",
+                typeof(Eremite.View.HUD.CycleEffectSlot),
+                "SetUp",
+                null,
+                typeof(PerkFramePatch),
+                nameof(PerkFramePatch.Postfix));
 
             Patch(
                 "ReputationService.CheckForWin",
