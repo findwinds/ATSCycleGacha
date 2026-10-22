@@ -412,9 +412,13 @@ namespace Forwindz.CycleGacha
         }
 
         private static readonly List<Slot> s_layout = new List<Slot>();
+        private static Rect s_actionDrawRect;
+        private static Rect s_actionResetRect;
 
         private const int GridCols = 6;
         private const int GridRows = 6;
+        private const int ActionRow = 4;
+        private const int ActionColLeft = 2;
 
         /// <summary>
         /// Compact card block: the legendary option is one big card in the middle (2x2 cells) and
@@ -466,17 +470,14 @@ namespace Forwindz.CycleGacha
                 for (int col = 0; col < GridCols && cursor < others.Count; col++)
                 {
                     bool center = col >= 2 && col <= 3 && row >= 2 && row <= 3;
-                    if (center)
+                    bool action = row == ActionRow && col >= ActionColLeft && col < ActionColLeft + 2;
+                    if (center || action)
                     {
                         continue;
                     }
 
                     int index = others[cursor++];
-                    Rect cell = new Rect(
-                        board.x + col * cellW + margin,
-                        board.y + row * cellH + margin,
-                        cellW - margin * 2f,
-                        cellH - margin * 2f);
+                    Rect cell = CellRect(board, row, col, cellW, cellH, margin);
 
                     Slot slot = new Slot();
                     slot.index = index;
@@ -500,6 +501,18 @@ namespace Forwindz.CycleGacha
                 slot.rarity = 0;
                 s_layout.Add(slot);
             }
+
+            s_actionDrawRect = CellRect(board, ActionRow, ActionColLeft, cellW, cellH, margin);
+            s_actionResetRect = CellRect(board, ActionRow, ActionColLeft + 1, cellW, cellH, margin);
+        }
+
+        private static Rect CellRect(Rect board, int row, int col, float cellW, float cellH, float margin)
+        {
+            return new Rect(
+                board.x + col * cellW + margin,
+                board.y + row * cellH + margin,
+                cellW - margin * 2f,
+                cellH - margin * 2f);
         }
 
         private static int StableHash(string text)
@@ -540,6 +553,32 @@ namespace Forwindz.CycleGacha
                 Slot slot = s_layout[i];
                 DrawCard(state.wheel[slot.index], slot.rect, slot.rarity, slot.index == highlight);
             }
+
+            DrawBoardActions();
+        }
+
+        private static void DrawBoardActions()
+        {
+            float s = Scale;
+            bool busy = s_phase != AnimPhase.None;
+
+            GUI.enabled = !busy && GachaService.CanDraw();
+            string drawLabel = s_phase == AnimPhase.Sweep ? "抽取中…" : "抽奖";
+            if (GUI.Button(s_actionDrawRect, drawLabel, s_button))
+            {
+                StartDraw();
+            }
+
+            GUI.enabled = !busy && GachaService.CanReset();
+            if (GUI.Button(s_actionResetRect, "重置转盘", s_button))
+            {
+                if (GachaService.ResetWheel())
+                {
+                    s_lastResult = "转盘已重置。";
+                }
+            }
+
+            GUI.enabled = true;
         }
 
         private static void DrawCard(WheelOption option, Rect rect, int rarity, bool highlighted)
@@ -578,6 +617,8 @@ namespace Forwindz.CycleGacha
             {
                 Fill(new Rect(rect.x, rect.y, rect.width, 2f * s), rarityColor);
                 Fill(new Rect(rect.x, rect.y + rect.height - 2f * s, rect.width, 2f * s), rarityColor);
+                Fill(new Rect(rect.x, rect.y, 2f * s, rect.height), rarityColor);
+                Fill(new Rect(rect.x + rect.width - 2f * s, rect.y, 2f * s, rect.height), rarityColor);
             }
 
             float pad = Mathf.Max(3f, rect.height * 0.06f);
@@ -680,32 +721,7 @@ namespace Forwindz.CycleGacha
         private static void DrawFooter(CycleState state, float x, float y, float w, float h)
         {
             float s = Scale;
-            float buttonW = 150f * s;
-            float buttonH = 40f * s;
-            float buttonY = y + (h - buttonH) * 0.5f;
-
-            bool busy = s_phase != AnimPhase.None;
-
-            GUI.enabled = !busy && GachaService.CanDraw();
-            if (GUI.Button(new Rect(x, buttonY, buttonW, buttonH), "抽取", s_button))
-            {
-                StartDraw();
-            }
-
-            GUI.enabled = !busy && GachaService.CanReset();
-            if (GUI.Button(new Rect(x + buttonW + 10f * s, buttonY, buttonW, buttonH), "重置转盘", s_button))
-            {
-                if (GachaService.ResetWheel())
-                {
-                    s_lastResult = "转盘已重置。";
-                }
-            }
-
-            GUI.enabled = true;
-
-            float textX = x + buttonW * 2f + 24f * s;
-            GUI.Label(new Rect(textX, y + 10f * s, Mathf.Max(10f, w - (textX - x)), h - 20f * s),
-                s_lastResult, s_label);
+            GUI.Label(new Rect(x, y + 10f * s, w, h - 20f * s), s_lastResult, s_label);
         }
 
         private static void DrawSidePanel(CycleState state, float x, float y, float w, float h)
