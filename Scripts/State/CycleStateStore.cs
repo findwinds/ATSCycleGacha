@@ -70,9 +70,12 @@ namespace Forwindz.CycleGacha
         }
 
         /// <summary>
-        /// Wipes the cycle board after the player clears their save. The game keeps the world map in
-        /// some modes (the Queen's Hand trial), so ATS_API's cycle-ended and new-game hooks never fire
-        /// and the stale charge, tickets and draw history would otherwise be carried over.
+        /// Wipes the cycle board after the player clears a save or profile.
+        ///
+        /// The game deletes the profile folder (including this mod's .moddedsave), but ATS_API keeps
+        /// the ModSaveData in memory and writes it back on the next save, which is why the tickets
+        /// and the draw history came back. Clearing the in-memory state here makes that next write a
+        /// fresh one; nothing is persisted, because the folder has just been deleted.
         /// </summary>
         public static void ResetForWipedSave()
         {
@@ -83,7 +86,6 @@ namespace Forwindz.CycleGacha
                 s_saveData.CurrentCycle.SetValue(SaveKey, s_state);
             }
 
-            PersistImmediately();
             Plugin.Log.LogInfo("The save was wiped, so the cycle gacha state was cleared: " +
                                s_state.Describe() + ".");
         }

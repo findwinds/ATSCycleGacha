@@ -1,3 +1,13 @@
+# 0.15.3
+
+- Clearing a save from the main menu's save list ("游戏资料") now resets the gacha state too. That
+  button runs ProfileSlot.ClearProfile -> ProfilesService.ClearProfile -> RemoveProfileSaves ->
+  RemoveAllProfileFiles, which deletes the profile folder (including this mod's .moddedsave).
+  Deleting the file alone was not enough: ATS_API keeps the ModSaveData in memory and writes it back
+  on the next save, so the tickets, charge and draw history reappeared. A postfix on
+  ProfilesService.RemoveProfileSaves now resets that in-memory state, and nothing is persisted,
+  because the folder has just been deleted.
+
 # 0.15.2
 
 - Clicks on the gacha window no longer reach the world map underneath. The window is drawn with

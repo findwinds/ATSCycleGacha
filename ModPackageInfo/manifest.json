@@ -1,6 +1,6 @@
 {
   "name": "CycleGacha",
-  "version_number": "0.15.2",
+  "version_number": "0.15.3",
   "website_url": "https://github.com/findwinds/ATSCycleGacha",
   "description": "Win a settlement for 10 draw tickets, then spin a 31-option world-map gacha for single-type resources, population or percentage buffs. 每赢一局获得10张券，抽取单一物资/人口/百分比加成。",
   "dependencies": [

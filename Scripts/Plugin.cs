@@ -14,7 +14,7 @@ namespace Forwindz.CycleGacha
     {
         public const string PLUGIN_GUID = "Forwindz.CycleGacha";
         public const string PLUGIN_NAME = "Cycle Gacha";
-        public const string PLUGIN_VERSION = "0.15.2";
+        public const string PLUGIN_VERSION = "0.15.3";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -153,6 +153,16 @@ namespace Forwindz.CycleGacha
                 typeof(InputBlockPatch),
                 nameof(InputBlockPatch.Prefix),
                 true);
+
+            // The save list in the main menu deletes the profile folder, which leaves ATS_API's
+            // in-memory mod data behind; reset it here so the next write is a fresh state.
+            Patch(
+                "ProfilesService.RemoveProfileSaves",
+                typeof(ProfilesService),
+                nameof(ProfilesService.RemoveProfileSaves),
+                null,
+                typeof(ProgressResetPatch),
+                nameof(ProgressResetPatch.ProfileSavesRemoved));
 
             // Wiping the save does not end a cycle, so the gacha state has to be cleared here too.
             Patch(
