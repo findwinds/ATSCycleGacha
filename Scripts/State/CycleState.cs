@@ -26,6 +26,12 @@ namespace Forwindz.CycleGacha
     {
         public int tickets;
 
+        /// <summary>
+        /// True once the cycle's starting tickets have been handed out, so a save carried over from a
+        /// build without them gets the bonus exactly once.
+        /// </summary>
+        public bool startingTicketsGranted;
+
         /// <summary>Reward of a draw whose reveal animation has not finished yet; committed when it lands.</summary>
         public string pendingRewardId;
         public bool wheelGenerated;

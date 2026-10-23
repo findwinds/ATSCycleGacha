@@ -1,3 +1,30 @@
+# 0.15.2
+
+- Clicks on the gacha window no longer reach the world map underneath. The window is drawn with
+  IMGUI, which the game's EventSystem cannot see, so `InputService.IsOverUI()` reported "not over UI"
+  and the click on the draw button also landed on the map (opening a field and jumping to another
+  screen). A prefix on `InputService.IsOverUI()` now reports "over UI" while the cursor is inside the
+  window, which covers every consumer at once (`WorldMapPointer.ReadClick` -> `IsWorldClicked` ->
+  `IsOverUI`).
+
+# 0.15.1
+
+- Wiping the save now clears the gacha cycle state (tickets, charge, drawn wheel and the reward
+  list). Clearing a save does not end a cycle: in the Queen's Hand trial the world map is kept and
+  the calendar never ends, so ATS_API's cycle-ended and new-game hooks never fired and the charge
+  and draw history survived the wipe. A postfix on `MetaStateService.ResetProgress` - the call behind
+  the wipe button - resets the board and writes the cleared state out immediately.
+
+# 0.15.0
+
+- A cycle now starts with 10 draw tickets (`startingTickets` in cycle_gacha.json), so the board can
+  be played before the first settlement is won. Saves from an older build get the bonus once, tracked
+  by `startingTicketsGranted` in the cycle state and persisted immediately.
+- Card names wrap onto a second line instead of being cut with an ellipsis; the cards always had the
+  room for it and only the truncation was in the way. A name longer than 60 characters still falls
+  back to truncation.
+- Config schema is now 7 (adds `startingTickets`).
+
 # 0.14.3
 
 - Fixed the rarity-coloured world map perk frames, which had stopped working:

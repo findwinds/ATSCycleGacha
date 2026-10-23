@@ -85,6 +85,9 @@ namespace Forwindz.CycleGacha
         /// <summary>Tickets granted for one completed settlement.</summary>
         public int ticketsPerSettlement = 10;
 
+        /// <summary>Tickets a fresh cycle starts with, before any settlement is won.</summary>
+        public int startingTickets = 10;
+
         private static readonly WheelCounts s_wheelCounts = new WheelCounts();
         private static readonly ChargeValues s_chargeValues = new ChargeValues();
         private static readonly RewardPools s_pools;
@@ -122,7 +125,7 @@ namespace Forwindz.CycleGacha
                 {
                     string json = File.ReadAllText(ConfigPath);
                     Current = JsonConvert.DeserializeObject<ModConfig>(json);
-                    if (Current == null || Current.schemaVersion < 6)
+                    if (Current == null || Current.schemaVersion < 7)
                     {
                         if (Current != null)
                         {
@@ -207,7 +210,7 @@ namespace Forwindz.CycleGacha
         public static ModConfig CreateDefault()
         {
             ModConfig config = new ModConfig();
-            config.schemaVersion = 6;
+            config.schemaVersion = 7;
             return config;
         }
 

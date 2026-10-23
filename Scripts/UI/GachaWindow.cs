@@ -98,6 +98,55 @@ namespace Forwindz.CycleGacha
         private static float s_styleScale = -1f;
         private static float s_boardScale;
 
+        /// <summary>
+        /// True while the gacha window is open and the cursor is on it, in the top-left origin
+        /// coordinates GUI.Window uses. Lets the input patch keep clicks from reaching the game.
+        /// </summary>
+        public static bool IsPointerInsideWindow()
+        {
+            if (!s_show || s_windowRect.width <= 1f || s_windowRect.height <= 1f)
+            {
+                return false;
+            }
+
+            if (!IsWorldMap())
+            {
+                return false;
+            }
+
+            Vector2 mouse = ReadMousePosition();
+            Vector2 topLeft = new Vector2(mouse.x, Screen.height - mouse.y);
+
+            // A couple of pixels of slack, so the window edge does not leak clicks.
+            return topLeft.x >= s_windowRect.x - 2f && topLeft.x <= s_windowRect.xMax + 2f &&
+                   topLeft.y >= s_windowRect.y - 2f && topLeft.y <= s_windowRect.yMax + 2f;
+        }
+
+        private static Vector2 ReadMousePosition()
+        {
+            try
+            {
+                UnityEngine.InputSystem.Mouse mouse = UnityEngine.InputSystem.Mouse.current;
+                if (mouse != null)
+                {
+                    return mouse.position.ReadValue();
+                }
+            }
+            catch
+            {
+                // Fall back to the legacy input manager below.
+            }
+
+            try
+            {
+                return Input.mousePosition;
+            }
+            catch
+            {
+                return Vector2.zero;
+            }
+        }
+
         public static void Toggle()
         {
             if (!IsWorldMap())
@@ -639,11 +688,12 @@ namespace Forwindz.CycleGacha
             if (textW > 14f)
             {
                 string name = option != null ? RewardService.GetDisplayName(option.rewardId) : "";
-                int maxChars = Mathf.Max(4, Mathf.FloorToInt(textW / Mathf.Max(6f, fontSize * 0.62f)));
 
+                // The card has room for two or three lines, so long names wrap instead of being cut
+                // with an ellipsis; only a pathological name falls back to truncation.
                 GUI.Label(
                     new Rect(textX, rect.y + pad * 0.8f, textW, rect.height - pad * 1.6f - chargeH),
-                    Truncate(name, maxChars),
+                    Truncate(name, 60),
                     nameStyle);
             }
 

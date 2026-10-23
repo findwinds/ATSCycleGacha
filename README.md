@@ -142,10 +142,11 @@
 
 ```json
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "gachaHotkey": "F7",
   "grantTicketOnLoss": false,
-  "ticketsPerSettlement": 10
+  "ticketsPerSettlement": 10,
+  "startingTickets": 10
 }
 ```
 
@@ -155,6 +156,7 @@
 - `gachaHotkey`：大地图打开抽奖窗口的热键，填 `UnityEngine.KeyCode` 的名字，如 `F7`。
 - `grantTicketOnLoss`：失败是否也给券，默认 `false`。
 - `ticketsPerSettlement`：每次胜利给多少张券，默认 `10`。
+- `startingTickets`：每个循环开局赠送多少张券，默认 `10`；旧存档会补发一次。
 
 ---
 

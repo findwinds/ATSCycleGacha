@@ -14,6 +14,7 @@ namespace Forwindz.CycleGacha
         private const string SettlementTicketKey = "CycleGacha_TicketGranted_v1";
 
         private static ModSaveData s_saveData;
+        private static bool s_grantedStartingTickets;
         private static CycleState s_state;
 
         public static CycleState State
@@ -36,17 +37,63 @@ namespace Forwindz.CycleGacha
             s_state = LoadState(data);
             Plugin.Log.LogInfo($"Cycle gacha save data loaded ({fileState}): {s_state.Describe()}");
 
+            if (s_grantedStartingTickets)
+            {
+                // Persist the "already granted" flag right away, otherwise quitting before the next
+                // save would hand the starting tickets out again on the following load.
+                s_grantedStartingTickets = false;
+                PersistImmediately();
+            }
+
             // Restore rewards drawn by a build that applied them by hand instead of registering
             // them with the game's cycle bonuses. No-ops until the world state is loaded.
             RewardService.EnsureRegistered();
         }
 
+        /// <summary>
+        /// A fresh cycle starts with the configured number of draw tickets, so the board can be
+        /// played before the first settlement is won.
+        /// </summary>
+        private static CycleState NewState()
+        {
+            CycleState state = new CycleState();
+            int starting = ModConfig.Current != null ? ModConfig.Current.startingTickets : 0;
+            if (starting > 0)
+            {
+                state.tickets = starting;
+            }
+
+            // The starting tickets are part of this state already, so the migration that tops up
+            // older saves must not add them a second time.
+            state.startingTicketsGranted = true;
+            return state;
+        }
+
+        /// <summary>
+        /// Wipes the cycle board after the player clears their save. The game keeps the world map in
+        /// some modes (the Queen's Hand trial), so ATS_API's cycle-ended and new-game hooks never fire
+        /// and the stale charge, tickets and draw history would otherwise be carried over.
+        /// </summary>
+        public static void ResetForWipedSave()
+        {
+            s_state = NewState();
+
+            if (s_saveData != null)
+            {
+                s_saveData.CurrentCycle.SetValue(SaveKey, s_state);
+            }
+
+            PersistImmediately();
+            Plugin.Log.LogInfo("The save was wiped, so the cycle gacha state was cleared: " +
+                               s_state.Describe() + ".");
+        }
+
         public static void OnCycleReset(ModSaveData data)
         {
             s_saveData = data;
-            s_state = new CycleState();
+            s_state = NewState();
             data.CurrentCycle.SetValue(SaveKey, s_state);
-            Plugin.Log.LogInfo("Cycle gacha state reset for the new cycle.");
+            Plugin.Log.LogInfo("Cycle gacha state reset for the new cycle (" + s_state.tickets + " ticket(s)).");
 
             try
             {
@@ -56,6 +103,31 @@ namespace Forwindz.CycleGacha
             {
                 Plugin.Log.LogWarning("Could not save the cleared cycle state immediately: " + e.Message);
             }
+        }
+
+        /// <summary>
+        /// Hands out the cycle's starting tickets. A save written by a build that predates them gets
+        /// the bonus once, so the board is playable without waiting for a settlement win.
+        /// </summary>
+        private static void GrantStartingTicketsOnce(CycleState state)
+        {
+            if (state.startingTicketsGranted)
+            {
+                return;
+            }
+
+            state.startingTicketsGranted = true;
+
+            int starting = ModConfig.Current != null ? ModConfig.Current.startingTickets : 0;
+            if (starting > 0)
+            {
+                state.tickets += starting;
+                Plugin.Log.LogInfo("Granted " + starting + " starting ticket(s) for this cycle.");
+            }
+
+            // Write the flag out right away, otherwise quitting before the next save would hand the
+            // tickets out again on the following load.
+            s_grantedStartingTickets = true;
         }
 
         public static void Persist()
@@ -183,7 +255,7 @@ namespace Forwindz.CycleGacha
             catch (Exception e)
             {
                 // Happens before ATS_API finished loading save data (for example during the main menu).
-                s_state = new CycleState();
+                s_state = NewState();
                 Plugin.Log.LogDebug("Cycle gacha state is not available yet: " + e.Message);
             }
         }
@@ -193,7 +265,7 @@ namespace Forwindz.CycleGacha
             CycleState state = null;
             try
             {
-                state = data.CurrentCycle.GetValueAsObject(SaveKey, new CycleState());
+                state = data.CurrentCycle.GetValueAsObject(SaveKey, NewState());
             }
             catch (Exception e)
             {
@@ -203,10 +275,11 @@ namespace Forwindz.CycleGacha
 
             if (state == null)
             {
-                state = new CycleState();
+                state = NewState();
             }
 
             state.Sanitize();
+            GrantStartingTicketsOnce(state);
             return state;
         }
     }

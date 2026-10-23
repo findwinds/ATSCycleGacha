@@ -14,7 +14,7 @@ namespace Forwindz.CycleGacha
     {
         public const string PLUGIN_GUID = "Forwindz.CycleGacha";
         public const string PLUGIN_NAME = "Cycle Gacha";
-        public const string PLUGIN_VERSION = "0.14.3";
+        public const string PLUGIN_VERSION = "0.15.2";
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -142,6 +142,26 @@ namespace Forwindz.CycleGacha
                 null,
                 typeof(PerkFramePatch),
                 nameof(PerkFramePatch.Postfix));
+
+            // IMGUI clicks are invisible to the game's EventSystem, so the window has to report
+            // itself as UI or the click lands on the world map underneath.
+            Patch(
+                "InputService.IsOverUI",
+                typeof(InputService),
+                nameof(InputService.IsOverUI),
+                null,
+                typeof(InputBlockPatch),
+                nameof(InputBlockPatch.Prefix),
+                true);
+
+            // Wiping the save does not end a cycle, so the gacha state has to be cleared here too.
+            Patch(
+                "MetaStateService.ResetProgress",
+                typeof(MetaStateService),
+                nameof(MetaStateService.ResetProgress),
+                null,
+                typeof(ProgressResetPatch),
+                nameof(ProgressResetPatch.Postfix));
 
             Patch(
                 "ReputationService.CheckForWin",
